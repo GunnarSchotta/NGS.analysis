@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-NGS repeats analysis
+NGS analysis
 """
 
 __auhor__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "0.0.1"
+__version__ = "0.9.5"
 
 
 from argparse import ArgumentParser
@@ -22,7 +22,7 @@ PROTOCOLS = ["CHIP", "CT", "CR", "RNA", "ATAC"]
 """
 Main pipeline process.
 """
-parser = ArgumentParser(description='NGS repeats analysis version ' + __version__)
+parser = ArgumentParser(description='NGS analysis version ' + __version__)
 parser = pypiper.add_pypiper_args(parser, groups=
     ['pypiper', 'looper', 'ngs'],
     required=["input", "genome", "sample-name", "output-parent"])
@@ -42,7 +42,7 @@ outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
 
 global pm
 pm = pypiper.PipelineManager(
-    name="NGS repeats analysis", outfolder=outfolder, args=args, version=__version__)
+    name="NGS analysis", outfolder=outfolder, args=args, version=__version__)
 
 global ngstk
 ngstk = pypiper.NGSTk(pm=pm)

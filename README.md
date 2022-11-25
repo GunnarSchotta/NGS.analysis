@@ -1,6 +1,6 @@
-# NGS.repeats.analysis
+# NGS.analysis
 
-NGS.repeats.analysis is a pipeline for mapping and quality control of NGS datasets with focus on repeat detection. Mapping and repeat coverage follow the guidelines from [Teissandier, 2019](https://mobilednajournal.biomedcentral.com/articles/10.1186/s13100-019-0192-1).
+NGS.analysis is a pipeline for mapping and quality control of NGS datasets with focus on repeat detection. Mapping and repeat coverage follow the guidelines from [Teissandier, 2019](https://mobilednajournal.biomedcentral.com/articles/10.1186/s13100-019-0192-1).
 
 The following experiments (protocols) are currently supported: RNA-seq, ChIP-seq, Cut&Run, Cut&Tag, ATAC-sequencing
 
@@ -58,11 +58,11 @@ Install Looper
     python -m pip install looper
     python -m pip install piper
 
-clone NGS.repeats.pipeline (in /home folder)
+clone NGS.analysis pipeline (in /home folder)
 
-    git clone https://github.com/gscarnuntum/NGS.repeats.analysis
+    git clone https://github.com/GunnarSchotta/NGS.analysis
 
 adjust path and configuration settings in:
-* NGS.repeats.analysis.yaml
+* NGS.analysis.yaml
 * sample_pipeline_interface.yaml
 * project_pipeline_interface.yaml
