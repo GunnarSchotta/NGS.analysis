@@ -12,6 +12,14 @@ command_template: >
   --single-or-paired { sample.read_type }
   --genome { sample.genome }
   --protocol { sample.protocol }
+  --pipeline-mode { project.pipeline_mode }
+  --STAR_RNA_index { sample.STAR_RNA_index }
+  --STAR_genome_index { sample.STAR_genome_index }
+  --Bowtie2_index { sample.Bowtie2_index }
+  --refgene_tss { sample.refgene_tss}
+  --genome_index { sample.genome_index}
+  --repeats_SAF { sample.repeats_SAF }
+  --repeats_SAFid { sample.repeats_SAFid }
 
 compute:
   mem: 50G

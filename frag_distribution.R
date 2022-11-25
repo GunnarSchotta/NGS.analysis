@@ -2,7 +2,7 @@
 #
 # frag_distribution.R
 #
-# usage: Rscript /path/to/Rscript/frag_distribution.R 
+# usage: Rscript /path/to/Rscript/frag_distribution.R
 #
 # Depends: R (>= 3.5.1)
 # Imports: PEPATACr, argparser
@@ -26,6 +26,7 @@ if (length(loadLibrary)!=0) {
 } else {
   quit()
 }
+library(ggplot2)
 
 # Create a parser
 p <- arg_parser("Produce Fragment distribution plot")
@@ -51,10 +52,11 @@ of.png <- paste(od,"/",sample,".fraglen.png", sep="")
 fl <- read.table(fraglen.file)
 fl$V1 <- abs(fl$V1)
 
-pdf(file=of.pdf)
-hist(fl$V1, nclass=50, xlab = "insert size", main = sample)
-dev.off()
 
-png(file=of.png)
-hist(fl$V1, nclass=50, xlab = "insert size", main = sample)
-dev.off()
+g <- ggplot(fl, aes(x=V1)) + geom_histogram(bins=50) +
+  xlim (0,500) + xlab ("insert size") +
+  ggtitle (sample) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggsave (g, filename = of.pdf, width = 4, height = 4)
+ggsave (g, filename = of.png, width = 3, height = 3)

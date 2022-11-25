@@ -12,12 +12,14 @@ from argparse import ArgumentParser
 import os
 import re
 import sys
+import tempfile
 import subprocess
 import yaml
 import pypiper
 from pypiper import build_command
 
 PROTOCOLS = ["CHIP", "CT", "CR", "RNA", "ATAC"]
+PIPELINEMODE = ["genes", "repeats"]
 
 """
 Main pipeline process.
@@ -29,6 +31,31 @@ parser = pypiper.add_pypiper_args(parser, groups=
 parser.add_argument("--protocol", dest="protocol", type=str,
                         default=None, choices=PROTOCOLS,
                         help="NGS processing protocol.")
+parser.add_argument("--pipeline-mode", dest="pipeline_mode", type=str,
+                        default=None, choices=PIPELINEMODE,
+                        help="Pipeline run mode.")
+parser.add_argument("--STAR_RNA_index", dest="STAR_RNA_index", type=str,
+                        default=None,
+                        help="STAR RNA index.")
+parser.add_argument("--STAR_genome_index", dest="STAR_genome_index", type=str,
+                        default=None,
+                        help="STAR genome index.")
+parser.add_argument("--Bowtie2_index", dest="Bowtie2_index", type=str,
+                        default=None,
+                        help="Bowtie2 genome index.")
+parser.add_argument("--refgene_tss", dest="refgene_tss", type=str,
+                        default=None,
+                        help="Refgene TSS Bed file")
+parser.add_argument("--genome_index", dest="genome_index", type=str,
+                        default=None,
+                        help="Genome Fasta index file (.fai)")
+parser.add_argument("--repeats_SAF", dest="repeats_SAF", type=str,
+                        default=None,
+                        help="Repeats SAF file for featureCounts")
+parser.add_argument("--repeats_SAFid", dest="repeats_SAFid", type=str,
+                        default=None,
+                        help="Repeats SAF file for featureCounts, individual Repeats")
+
 args = parser.parse_args()
 args.paired_end = args.single_or_paired.lower() == "paired"
 
@@ -205,7 +232,7 @@ trim_cmd_chunks = [
     trimming_prefix + "_R1_unpaired.fq" if args.paired_end else None,
     trimmed_fastq_R2 if args.paired_end else None,
     trimming_prefix + "_R2_unpaired.fq" if args.paired_end else None,
-    "ILLUMINACLIP:" + adapters + ":2:30:10"
+    "ILLUMINACLIP:" + adapters + ":2:30:10 MINLEN:36"
 ]
 trim_cmd = build_command(trim_cmd_chunks)
 
@@ -279,34 +306,13 @@ mapping_genome_bam_dedup_unique = mapping_genome_bam_star_path + "dedup.unique.b
 mapping_genome_bam_dedup_unique_idx = mapping_genome_bam_star_path + "dedup.unique.bam.bai"
 mapping_genome_bam_dedup_unique_bw = mapping_genome_bam_star_path + "dedup.unique.bw"
 
-#STAR alignment command
-if args.genome_assembly == "mm10":
-    STAR_index = res.STAR_mm10
-    STAR_genome_index = res.STARgenome_mm10
-else:
-    STAR_index = res.STAR_hg38
-    STAR_genome_index = res.STARgenome_hg38
+#alignment indexes from command line arguments
+STAR_RNA_index = args.STAR_RNA_index
+STAR_genome_index = args.STAR_genome_index
+Bowtie2_index = args.Bowtie2_index
 
-if args.protocol == "RNA":
-    #annotated genomes for RNA-seq
-    cmd = "STAR" + " --runThreadN " + str(pm.cores)
-    cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM SortedByCoordinate --runMode alignReads --outFilterMultimapNmax 5000 --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --seedSearchStartLmax 30 --alignTranscriptsPerReadNmax 30000 --alignWindowsPerReadNmax 30000 --alignTranscriptsPerWindowNmax 300 --seedPerReadNmax 3000 --seedPerWindowNmax 300 --seedNoneLociPerWindow 1000 --genomeDir " + STAR_index
-    cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
-    if args.paired_end:
-                cmd += " " + unmap_fq2 + " "
-    cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
-    cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
-else:
-    #non-annotated genomes and for others
-    cmd = "STAR" + " --runThreadN " + str(pm.cores)
-    cmd += " --outSAMtype BAM SortedByCoordinate --runMode alignReads --outFilterMultimapNmax 5000 --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 350 --seedSearchStartLmax 30 --alignTranscriptsPerReadNmax 30000 --alignWindowsPerReadNmax 30000 --alignTranscriptsPerWindowNmax 300 --seedPerReadNmax 3000 --seedPerWindowNmax 300 --seedNoneLociPerWindow 1000 --genomeDir " + STAR_genome_index
-    cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
-    if args.paired_end:
-                cmd += " " + unmap_fq2 + " "
-    cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
-    cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
-
-def check_alignment_genome():
+#generate STAR alignment statistics
+def check_STAR_alignment():
      x = subprocess.check_output("awk -F\| 'NR==6 { print $2 }' " + mapping_genome_bam_log, shell=True)
      ir = int(x.decode().strip())
      pm.report_result("Input_reads", ir)
@@ -329,8 +335,74 @@ def check_alignment_genome():
      pm.report_result("Unique_Mapping_rate", round((ur)*100/ir,2))
      pm.report_result("Multi_Mapping_rate", round((mmr+mmxr)*100/ir,2))
 
+if args.pipeline_mode == "repeats":
+    if args.protocol == "RNA":
+        #annotated genomes for RNA-seq
+        mapper = "STAR"
+        cmd = "STAR" + " --runThreadN " + str(pm.cores)
+        cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
+        cmd += " SortedByCoordinate --runMode alignReads --outFilterMultimapNmax 5000"
+        cmd += " --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random"
+        cmd += " --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --seedSearchStartLmax 30"
+        cmd += " --alignTranscriptsPerReadNmax 30000 --alignWindowsPerReadNmax 30000"
+        cmd += " --alignTranscriptsPerWindowNmax 300 --seedPerReadNmax 3000 --seedPerWindowNmax 300"
+        cmd += " --seedNoneLociPerWindow 1000 --genomeDir " + STAR_RNA_index
+        cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
+        if args.paired_end:
+                    cmd += " " + unmap_fq2 + " "
+        cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
+        cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
+    else:
+        #non-annotated genomes and for others
+        mapper = "STAR"
+        cmd = "STAR" + " --runThreadN " + str(pm.cores)
+        cmd += " --outSAMtype BAM SortedByCoordinate --runMode alignReads --outFilterMultimapNmax 5000"
+        cmd += " --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random"
+        cmd += " --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --alignIntronMax 1"
+        cmd += " --alignMatesGapMax 350 --seedSearchStartLmax 30 --alignTranscriptsPerReadNmax 30000"
+        cmd += " --alignWindowsPerReadNmax 30000 --alignTranscriptsPerWindowNmax 300"
+        cmd += " --seedPerReadNmax 3000 --seedPerWindowNmax 300 --seedNoneLociPerWindow 1000"
+        cmd += " --genomeDir " + STAR_genome_index
+        cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
+        if args.paired_end:
+                    cmd += " " + unmap_fq2 + " "
+        cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
+        cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
 
-pm.run([cmd, cmd2], mapping_genome_bam, follow=check_alignment_genome)
+    pm.run([cmd, cmd2], mapping_genome_bam, follow=check_STAR_alignment)
+else: #pipeline_mode: genes
+    if args.protocol == "RNA": #use STAR for RNA-seq mapping
+        #annotated genomes for RNA-seq
+        mapper = "STAR"
+        cmd = "STAR" + " --runThreadN " + str(pm.cores)
+        cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
+        cmd += " SortedByCoordinate --runMode alignReads --genomeDir " + STAR_RNA_index
+        cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
+        if args.paired_end:
+                    cmd += " " + unmap_fq2 + " "
+        cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
+        cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
+
+        pm.run([cmd, cmd2], mapping_genome_bam, follow=check_STAR_alignment)
+    else: #use bowtie2 for gene mapping
+        tempdir = tempfile.mkdtemp(dir=map_genome_folder)
+        os.chmod(tempdir, 0o771)
+        pm.clean_add(tempdir)
+        mapper = "Bowtie2"
+        cmd = tools.bowtie2 + " -p " + str(pm.cores)
+        cmd += " --very-sensitive -X 2000" #mapping options
+        cmd += " --rg-id " + args.sample_name
+        cmd += " -x " + Bowtie2_index
+        if args.paired_end:
+            cmd += " -1 " + unmap_fq1 + " -2 " + unmap_fq2
+        else:
+            cmd += " -U " + unmap_fq1
+        cmd += " | " + tools.samtools + " view -bS - -@ 1 "
+        cmd += " | " + tools.samtools + " sort - -@ 1"
+        cmd += " -T " + tempdir
+        cmd += " -o " + mapping_genome_bam
+
+        pm.run(cmd, mapping_genome_bam)
 
 #check insert size distribution
 if args.paired_end and (not args.protocol == "RNA"):
@@ -385,12 +457,15 @@ def check_duplicates():
         pm.report_result("Percent_duplication", percdup)
 
 #Remove duplicates
-cmd = tools.picard + " MarkDuplicates -I " + mapping_genome_bam
+cmd = tools.picard + " MarkDuplicates --VALIDATION_STRINGENCY LENIENT -I " + mapping_genome_bam
 cmd += " -O " + mapping_genome_bam_dedup + " -M " + mapping_genome_bam_dedup_metrics
 pm.run(cmd, mapping_genome_bam_dedup, follow=check_duplicates)
 
-#Remove multimapping reads based on MAPQ=255
-cmd = tools.samtools + " view -b -q 255 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
+#Remove multimapping reads based on MAPQ=255 (STAR) or MAPQ=42 (Bowtie2)
+if mapper == "STAR":
+    cmd = tools.samtools + " view -b -q 255 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
+else:
+    cmd = tools.samtools + " view -b -q 42 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
 pm.run(cmd, mapping_genome_bam_dedup_unique)
 
 #Index deduplicated and unique BAM file
@@ -448,16 +523,16 @@ if (args.protocol == "CT" or args.protocol == "CR") and args.paired_end:
     #           taken from PEPATAC Pipeline                                    #
     ############################################################################
 if args.protocol == "ATAC":
-    if not os.path.exists(res.refgene_tss):
+    if not os.path.exists(args.refgene_tss):
         print("Skipping TSS -- TSS enrichment requires TSS annotation file: {}"
-              .format(res.refgene_tss))
+              .format(args.refgene_tss))
     else:
         pm.timestamp("### Calculate TSS enrichment")
 
         Tss_enrich = os.path.join(QC_folder, args.sample_name +
                                   "_TSS_enrichment.txt")
         cmd = tool_path("pyTssEnrichment.py")
-        cmd += " -a " + mapping_genome_bam_dedup_unique + " -b " + res.refgene_tss + " -p ends"
+        cmd += " -a " + mapping_genome_bam_dedup_unique + " -b " + args.refgene_tss + " -p ends"
         cmd += " -c " + str(pm.cores)
         cmd += " -z -v -s 6 -o " + Tss_enrich
         print(cmd)
@@ -497,6 +572,10 @@ if args.protocol == "ATAC":
 
         pm.report_object("TSS enrichment", Tss_pdf, anchor_image=Tss_png)
 
+#STOP pipeline if genes mode,otherwise continue with repeats coverage
+if args.pipeline_mode == "genes":
+    pm.stop_pipeline()
+    sys.exit()
 
 ############################################################################
 #                          IAP Coverage                                    #
@@ -517,13 +596,13 @@ if args.genome_assembly == "mm10":
 
     #generate Coverage using bedtools coverage
     #Plus orientation
-    cmd = tools.bedtools + " coverage -g " + res.mm10_fai + " -sorted -d -a " + res.gag_plus
+    cmd = tools.bedtools + " coverage -g " + args.genome_index + " -sorted -d -a " + res.gag_plus
     cmd += " -b " + mapping_genome_bam
     cmd += " > " + IAP_plus
     pm.run(cmd, IAP_plus)
 
     #Minus Orientation
-    cmd = tools.bedtools + " coverage -g " + res.mm10_fai + " -sorted -d -a " + res.gag_minus
+    cmd = tools.bedtools + " coverage -g " + args.genome_index + " -sorted -d -a " + res.gag_minus
     cmd += " -b " + mapping_genome_bam
     cmd += " > " + IAP_minus
     pm.run(cmd, IAP_minus)
@@ -556,12 +635,8 @@ feature_counts_result = feature_counts_folder + "/" + args.sample_name + ".fc.tx
 feature_counts_result_id = feature_counts_folder + "/" + args.sample_name + ".fc.id.txt"
 
 #SAF files
-if args.genome_assembly == "mm10":
-    SAF = res.repeats_SAF_mm10
-    SAFid = res.repeats_SAFid_mm10 #for individual elements
-else:
-    SAF = res.repeats_SAF_hg38
-    SAFid = res.repeats_SAFid_hg38
+SAF = args.repeats_SAF
+SAFid = args.repeats_SAFid #for individual elements
 
 #perform featurecounts on repeat classes
 cmd = tools.featureCounts + " -M -F SAF -T 1 -s 0 -a " + SAF
