@@ -1,0 +1,64 @@
+description: objects produced by NGS repeats analysis pipeline.
+properties:
+  samples:
+    type: array
+    items:
+      type: object
+      properties:
+        bigwig: 
+          path: "aligned_{genome}/{sample_name}.dedup.unique.bw"
+          type: string
+          description: "Unique alignment BigWig file"
+        aligned_dedup_bam:
+          path: "aligned_{genome}_exact/{sample_name}.dedup.unique.bam"
+          type: string
+          description: "Coordinate sorted aligned BAM file unique mapping deduplicated"
+        aligned_bam: 
+          path: "aligned_{genome}/{sample_name}.bam"
+          type: string
+          description: "Coordinate sorted aligned BAM file"
+        feature_counts: 
+          path: "feature_counts/{sample_name}.fc.txt"
+          type: string
+          description: "FeatureCount on repeat families"
+        IAP_coverage:
+          path: "IAP_coverage/{sample_name}.IAP.norm.coverage.txt"
+          type: string
+          description: "IAP cumulative coverge"
+  stat_summary_file:
+    title: "Statistics summary file"
+    description: "Summary statstics for all samples"
+    path: "summary/{name}_stats_summary.tsv"
+    type: file
+  feature_counts_classes_file:
+    title: "Featurecounts individual repeats file"
+    description: "FeatureCount individual repeats summary for all samples"
+    path: "summary/{name}_fc_id_summary.tsv"
+    type: file
+  feature_counts_id_file:
+    title: "Featurecounts classes file"
+    description: "FeatureCount summary for all samples"
+    path: "summary/{name}_fc_summary.tsv"
+    type: file
+  IAP_coverage_file:
+    title: "IAP coverage file"
+    description: "IAP coverage summary for all samples"
+    path: "summary/{name}_IAP_coverage_summary.tsv"
+    type: file
+  IAP_coverage_samples:
+    title: "IAP coverge samples plot"
+    description: "Plots IAP coverage for all samples"
+    thumbnail_path: "summary/{name}_IAP_coverage_samples.png"
+    path: "summary/{name}_IAP_coverage_samples.pdf"
+    type: image
+  IAP_coverage_merged:
+    title: "IAP coverge plot merged"
+    description: "Plots IAP coverage merged for all samples"
+    thumbnail_path: "summary/{name}_IAP_coverage_merged.png"
+    path: "summary/{name}_IAP_coverage_merged.pdf"
+    type: image
+  gene_counts_file:
+    title: "Gene counts file"
+    description: "Gene counts summary for all samples"
+    path: "summary/{name}_gene_counts_summary.tsv"
+    type: file

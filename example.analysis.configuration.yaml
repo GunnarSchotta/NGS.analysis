@@ -1,0 +1,27 @@
+#specify Project name
+name: Eugenio.Arl14ep.H3K9me3
+
+pep_version: 2.0.0
+#specify file name for sample table
+sample_table: sample.table.csv
+
+looper:
+  #specify folder for results output, typically "analysis" subfolder under the main project folder 
+  output_dir: "/work/project/becgsc_001/analysis/Eugenio.H3K9me3/analysis"
+  #specify folder for file project_pipeline_interface.yaml; in you pipeline installation folder
+  pipeline_interfaces: ["/work/project/becgsc_001/dev/NGS.repeats.analysis/project_pipeline_interface.yaml"]
+sample_modifiers:
+  append:
+    #specify folder for file sample_pipeline_interface.yaml; in you pipeline installation folder
+    pipeline_interfaces: ["/work/project/becgsc_001/dev/NGS.repeats.analysis/sample_pipeline_interface.yaml"]
+  derive:
+    attributes: [read1, read2]
+    sources:
+      #specify data folder for the specific project files, all fastq files for one project should be placed in one data folder
+      R1: "/work/project/becgsc_019/ef37_CT_KO56_T253/220929_VL00118_220_AAC3GTVM5/{fastq1}"
+      R2: "/work/project/becgsc_019/ef37_CT_KO56_T253/220929_VL00118_220_AAC3GTVM5/{fastq2}"
+  imply:
+    - if: 
+        organism: ["mouse"]
+      then: 
+        genome: mm10

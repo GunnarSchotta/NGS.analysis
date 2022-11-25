@@ -1,0 +1,47 @@
+# PEPATAC configuration file for an ATACseq pipeline based on pypiper
+
+# basic tools
+# public tools
+tools:  # absolute paths to required tools
+  java: java
+  python: python
+  samtools: samtools
+  bedtools: bedtools
+  bowtie2: bowtie2
+  fastqc: fastqc
+  featureCounts: featureCounts
+  # ucsc tools
+#  wigToBigWig: wigToBigWig
+#  bigWigCat: bigWigCat
+#  bedToBigBed: bedToBigBed
+  # optional tools
+  trimmomatic: trimmomatic
+  picard: picard
+  bamcoverage: bamCoverage
+#  pigz: pigz
+  Rscript: Rscript
+#  bigWigMerge: bigWigMerge
+#  bedGraphToBigWig: bedGraphToBigWig
+
+
+# user configure
+resources:
+#  genome_config: ${REFGENIE}
+  adapters_nextera: /home/gschotta/anaconda3/envs/ngs/share/trimmomatic-0.39-2/adapters/NexteraPE-PE.fa
+  adapters_illumina: /home/gschotta/anaconda3/envs/ngs/share/trimmomatic-0.39-2/adapters/TruSeq3-PE-2.fa
+  gag_plus: /work/project/becgsc_001/dev/NGS.repeats.analysis/gag.plus.15k.sorted.bed #BED File with IAP plus orientation coordinates, sorted like genome (faidx)
+  gag_minus: /work/project/becgsc_001/dev/NGS.repeats.analysis/gag.minus.15k.sorted.bed #BED File with IAP minus orientation coordinates, sorted like genome (faidx)
+  repeats_SAF_mm10: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.mm10.160322.SAF #Repeat coordinates for FeatureCounts
+  repeats_SAFid_mm10: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.ids.mm10.160322.SAF #Repeat coordinates for FeatureCounts
+  STAR_mm10: /work/project/becgsc_001/genomes/mm10/STAR
+  STARgenome_mm10: /work/project/becgsc_001/genomes/mm10/STARgenome
+  STAR_hg38: /work/project/becgsc_001/genomes/hg38/STAR
+  STARgenome_hg38: /work/project/becgsc_001/genomes/hg38/STARgenome
+  refgene_tss: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/mm10_TSS.bed
+  mm10_fai: /work/project/becgsc_001/genomes/mm10/Sequence/WholeGenomeFasta/genome.fa.fai
+
+parameters:  # parameters passed to bioinformatic tools, subclassed by tool
+# Adjust/Add/Remove parameters for individual tools here
+  java_settings:
+    params: ''
+    # Can modify java settings in this manner. e.g. -Xms1g -Xmx7g. Default is no modifications.

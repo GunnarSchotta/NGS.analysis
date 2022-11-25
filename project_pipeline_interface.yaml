@@ -1,0 +1,18 @@
+pipeline_name: NGS.repeats.analysis
+pipeline_type: project
+output_schema: NGS.repeats.analysis_output_schema.yaml
+path: /work/project/becgsc_001/dev/NGS.repeats.analysis/NGS.repeats.analysis.collator.py
+command_template: >
+  {pipeline.path} 
+  --config {looper.pep_config}
+  -O {looper.output_dir}
+  -P {compute.cores}
+  -M {compute.mem}
+  -n {project.name}
+  -r {looper.results_subdir}
+compute:
+  mem: 20G
+  cores: 32
+  partition: slim16
+  time: 8:00:00
+

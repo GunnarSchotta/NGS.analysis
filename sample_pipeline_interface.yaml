@@ -1,0 +1,22 @@
+pipeline_name: NGS.repeats.analysis
+pipeline_type: sample
+path: /work/project/becgsc_001/dev/NGS.repeats.analysis/NGS.repeats.analysis.py
+command_template: >
+  {pipeline.path}
+  --output-parent { looper.results_subdir }
+  --cores { compute.cores }
+  --mem { compute.mem }
+  --sample-name { sample.sample_name }
+  --input { sample.read1 }
+  {% if sample.read2 is defined %} --input2 { sample.read2 } {% endif %}
+  --single-or-paired { sample.read_type }
+  --genome { sample.genome }
+  --protocol { sample.protocol }
+  
+compute:
+  mem: 50G
+  cores: 32
+  partition: slim18
+  time: 8:00:00
+var_templates:
+  refgenie_config: "$REFGENIE"
