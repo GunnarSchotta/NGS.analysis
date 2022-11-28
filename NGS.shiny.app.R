@@ -202,9 +202,9 @@ shinyApp(
       
       setProgress(message = "calculate contrasts", value = 0.8)
       
-      degenes <- results(des, contrast = c("genotype", gt.a, gt.b))
+      degenes <- results(des, contrast = c("genotype", gt.b, gt.a))
       degenes.sig <- subset(degenes, padj < 0.05)
-      des.shrink <- as.data.frame(lfcShrink(type = "normal", contrast = c("genotype", gt.a, gt.b), des))
+      des.shrink <- as.data.frame(lfcShrink(type = "normal", contrast = c("genotype", gt.b, gt.a), des))
       up <- des.shrink[rownames(des.shrink) %in% rownames(degenes.sig) & des.shrink$log2FoldChange>0,]
       down <- des.shrink[rownames(des.shrink) %in% rownames(degenes.sig) & des.shrink$log2FoldChange< 0,]
       
