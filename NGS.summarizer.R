@@ -100,7 +100,7 @@ createStatsSummary <- function(samples, results_subdir) {
     return(stats)
 }
 
-getBAMfiles <- function(samples, results_subdir) {
+getResultFiles <- function(samples, results_subdir, filter) {
   # get BAM files summary for downstream analysis
   for (sample in samples) {
     sample_output_folder <- file.path(results_subdir, sample)
@@ -117,17 +117,17 @@ getBAMfiles <- function(samples, results_subdir) {
     t <- t[!duplicated(t[, c('object', 'val', 'annotation', 'V4', 'V5')],
                      fromLast=TRUE),]
 
-    t <- t[grep("BAM",t$object),]
+    t <- t[grep(filter,t$object),]
     t$sample_name <- sample
     t <- t[,c("sample_name","object","val")]
 
-    if (exists("bam_files", inherits = F)) {
-      bam_files <- rbind(bam_files, t, fill=TRUE)
+    if (exists("result_files", inherits = F)) {
+      result_files <- rbind(result_files, t, fill=TRUE)
     } else {
-      bam_files <- t
+      result_files <- t
     }
   }
-  return(bam_files)
+  return(result_files)
 }
 
 ################################################################################
@@ -181,7 +181,7 @@ fwrite(stats, project_stats_file, sep="\t", col.names=TRUE)
 ########################
 # Generate BAM files summary and igv_session files
 write(paste0("Creating BAM files summary..."), stdout())
-bam_files <- getBAMfiles (project_samples, results_subdir)
+bam_files <- getResultFiles (project_samples, results_subdir, "BAM_mapped")
 bam_files_tsv <- bam_files
 bam_files_tsv$val <- paste(argv$results,bam_files_tsv$val,sep="/")
 
@@ -211,6 +211,30 @@ for (row in 1:nrow(bam_files))
 }
 write ("\t</Resources>", project_bam_igv, append=T)
 write ("</Session>", project_bam_igv, append=T)
+
+
+########################
+# Generate BigWig igv_session file
+write(paste0("Creating BigWig IGV session file..."), stdout())
+bw_files <- getResultFiles (project_samples, results_subdir, "BigWig")
+project_bw_igv <- file.path(argv$output,
+                                paste0(project_name, '_BigWig_igv_session.xml'))
+write ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bw_igv)
+write (paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
+project_bw_igv, append =T)
+write ("\t<Resources>", project_bw_igv, append=T)
+for (row in 1:nrow(bw_files))
+{
+  sample_name <- bw_files[row,"sample_name"]
+  sample_file <- bw_files[row,"val"]
+  sample_dir <- file.path(results_subdir, sample_name)
+  bw_file <- paste(sample_dir, sample_file, sep="/")
+  #change relative directory to X:
+  bw_file <- gsub("/work/project","X:",bw_file)
+  write (paste("<Resource path=\"",bw_file,"\"/>",sep=""), project_bw_igv, append=T)
+}
+write ("\t</Resources>", project_bw_igv, append=T)
+write ("</Session>", project_bw_igv, append=T)
 
 #######################################
 # Generate FeatureCount classes summary
