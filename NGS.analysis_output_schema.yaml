@@ -33,17 +33,17 @@ properties:
   feature_counts_classes_file:
     title: "Featurecounts individual repeats file"
     description: "FeatureCount individual repeats summary for all samples"
-    path: "summary/{name}_fc_id_summary.tsv"
+    path: "summary/{name}_fc_id_summary.rds"
     type: file
   feature_counts_id_file:
     title: "Featurecounts classes file"
     description: "FeatureCount summary for all samples"
-    path: "summary/{name}_fc_summary.tsv"
+    path: "summary/{name}_fc_summary.rds"
     type: file
   IAP_coverage_file:
     title: "IAP coverage file"
     description: "IAP coverage summary for all samples"
-    path: "summary/{name}_IAP_coverage_summary.tsv"
+    path: "summary/{name}_IAP_coverage_summary.rds"
     type: file
   IAP_coverage_samples:
     title: "IAP coverge samples plot"
@@ -60,5 +60,5 @@ properties:
   gene_counts_file:
     title: "Gene counts file"
     description: "Gene counts summary for all samples"
-    path: "summary/{name}_gene_counts_summary.tsv"
+    path: "summary/{name}_gene_counts_summary.rds"
     type: file

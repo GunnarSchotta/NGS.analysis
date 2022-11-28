@@ -30,7 +30,7 @@ def parse_arguments():
 
     :return argparse.Namespace: parsed arguments namespace
     """
-    parser = VersionInHelpParser(prog="ChIP-seq_collator",
+    parser = VersionInHelpParser(prog="NGS_analysis_collator",
         description='NGS analysis collator' , version=__version__)
     parser = pypiper.add_pypiper_args(parser, groups=['pypiper', 'looper'])
     parser.add_argument("-n", "--name",
@@ -45,7 +45,7 @@ def main():
     args = parse_arguments()
     outfolder = os.path.abspath(os.path.join(args.output_parent, "summary"))
 
-    pm = pypiper.PipelineManager(name="ChIP-seq_collator", outfolder=outfolder,
+    pm = pypiper.PipelineManager(name="NGS_analysis_collator", outfolder=outfolder,
                                  args=args, version=__version__)
 
     cmd = (f"Rscript {tool_path('NGS.summarizer.R')} "

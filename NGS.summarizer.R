@@ -111,6 +111,7 @@ pep <- argv$config
 prj <- invisible(suppressWarnings(pepr::Project(pep)))
 # Convenience
 project_name    <- config(prj)$name
+pipeline_mode <- config(prj)$pipeline_mode
 project_protocol <- unique(invisible(suppressWarnings(pepr::sampleTable(prj)$protocol)))
 project_samples <- pepr::sampleTable(prj)$sample_name
 #sample_table    <- data.table(sample_name=pepr::sampleTable(prj)$sample_name,
@@ -151,69 +152,71 @@ fwrite(stats, project_stats_file, sep="\t", col.names=TRUE)
 
 #######################################
 # Generate FeatureCount classes summary
+if (pipeline_mode == "repeats")
+{
+  write(paste0("Creating feature count classes summary..."), stdout())
 
-write(paste0("Creating feature count classes summary..."), stdout())
-
-feature_counts_file <- file.path(summary_dir,
-                                paste0(project_name, '_fc_summary.tsv'))
-feature_counts_rds <- file.path(summary_dir,
-                                 paste0(project_name, '_fc_summary.rds'))
-for (sample in project_samples) {
-  sample_output_folder <- file.path(results_subdir, sample)
-  sample_fc_file   <- file.path(sample_output_folder, "feature_counts",
-                                paste(sample,".fc.txt",sep=""))
-  t <- fread(sample_fc_file, header=F,
-             col.names=c('repeatID', 'length', sample), skip = 2)
-  if (exists("fc", inherits = F)) {
-    fc <- cbind(fc, t[,3])
-  } else {
-    fc <- t
+  feature_counts_file <- file.path(summary_dir,
+                                  paste0(project_name, '_fc_summary.tsv'))
+  feature_counts_rds <- file.path(summary_dir,
+                                   paste0(project_name, '_fc_summary.rds'))
+  for (sample in project_samples) {
+    sample_output_folder <- file.path(results_subdir, sample)
+    sample_fc_file   <- file.path(sample_output_folder, "feature_counts",
+                                  paste(sample,".fc.txt",sep=""))
+    t <- fread(sample_fc_file, header=F,
+               col.names=c('repeatID', 'length', sample), skip = 2)
+    if (exists("fc", inherits = F)) {
+      fc <- cbind(fc, t[,3])
+    } else {
+      fc <- t
+    }
   }
+
+  #fwrite(fc, feature_counts_file, sep="\t", col.names=TRUE)
+
+  #generate SummarizedExperiment
+  fcm <- as.matrix(fc[,3:ncol(fc)])
+  rownames(fcm) <- fc$repeatID
+  fc.se <- SummarizedExperiment(assays = list(counts=fcm), colData = sample_table)
+  saveRDS(fc.se, file = feature_counts_rds)
 }
-
-fwrite(fc, feature_counts_file, sep="\t", col.names=TRUE)
-
-#generate SummarizedExperiment
-fcm <- as.matrix(fc[,3:ncol(fc)])
-rownames(fcm) <- fc$repeatID
-fc.se <- SummarizedExperiment(assays = list(counts=fcm), colData = sample_table)
-saveRDS(fc.se, file = feature_counts_rds)
-
 
 ###################################################
 # Generate FeatureCount individual elements summary
+if (pipeline_mode == "repeats")
+{
+  write(paste0("Creating feature counts elements summary..."), stdout())
 
-write(paste0("Creating feature counts elements summary..."), stdout())
-
-feature_counts_id_file <- file.path(summary_dir,
-                                paste0(project_name, '_fc_id_summary.tsv'))
-feature_counts_id_rds <- file.path(summary_dir,
-                                 paste0(project_name, '_fc_id_summary.rds'))
-for (sample in project_samples) {
-  sample_output_folder <- file.path(results_subdir, sample)
-  sample_fc_file   <- file.path(sample_output_folder, "feature_counts",
-                                paste(sample,".fc.id.txt",sep=""))
-  t <- fread(sample_fc_file, header=F,
-             col.names=c('repeatID', 'chr', 'start', 'end', 'strand', 'length', sample), skip = 2)
-  if (exists("fcid", inherits = F)) {
-    fcid <- cbind(fcid, t[,7])
-  } else {
-    fcid <- t
+  feature_counts_id_file <- file.path(summary_dir,
+                                  paste0(project_name, '_fc_id_summary.tsv'))
+  feature_counts_id_rds <- file.path(summary_dir,
+                                   paste0(project_name, '_fc_id_summary.rds'))
+  for (sample in project_samples) {
+    sample_output_folder <- file.path(results_subdir, sample)
+    sample_fc_file   <- file.path(sample_output_folder, "feature_counts",
+                                  paste(sample,".fc.id.txt",sep=""))
+    t <- fread(sample_fc_file, header=F,
+               col.names=c('repeatID', 'chr', 'start', 'end', 'strand', 'length', sample), skip = 2)
+    if (exists("fcid", inherits = F)) {
+      fcid <- cbind(fcid, t[,7])
+    } else {
+      fcid <- t
+    }
   }
+
+  #fwrite(fcid, feature_counts_id_file, sep="\t", col.names=TRUE)
+
+  #generate SummarizedExperiment
+  fcidm <- as.matrix(fcid[,7:ncol(fcid)])
+  rownames(fcidm) <- fcid$repeatID
+  fcid.se <- SummarizedExperiment(assays = list(counts=fcidm), colData = sample_table)
+  saveRDS(fcid.se, file = feature_counts_id_rds)
 }
-
-fwrite(fcid, feature_counts_id_file, sep="\t", col.names=TRUE)
-
-#generate SummarizedExperiment
-fcidm <- as.matrix(fcid[,7:ncol(fcid)])
-rownames(fcidm) <- fcid$repeatID
-fcid.se <- SummarizedExperiment(assays = list(counts=fcidm), colData = sample_table)
-saveRDS(fcid.se, file = feature_counts_id_rds)
-
 
 ###################################################
 # Generate IAP coverage summary (for mouse samples)
-if (genome =="mm10")
+if (genome =="mm10" & pipeline_mode == "repeats")
 {
 	write(paste0("Creating IAP coverage summary..."), stdout())
 
@@ -235,8 +238,8 @@ if (genome =="mm10")
 	    coverage <- cf[,c(2,1)]
 	  }
 	}
-	fwrite(coverage, file = IAP_coverage_file, sep="\t",
-        	    col.names=TRUE, row.names=F, quote=F)
+	#fwrite(coverage, file = IAP_coverage_file, sep="\t",
+  #      	    col.names=TRUE, row.names=F, quote=F)
 
 #generate SummarizedExperiment
 cm <- as.matrix(coverage[,2:ncol(coverage)])
@@ -288,7 +291,7 @@ if (project_protocol == "RNA") {
 			gct <- t[,c(1,3)]
 		}
 	}
-	fwrite(gct, gene_counts_file, sep="\t", col.names=TRUE)
+	#fwrite(gct, gene_counts_file, sep="\t", col.names=TRUE)
 
 	#Summarized Experiment
 	gene_counts_rds <- file.path(summary_dir,

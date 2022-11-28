@@ -299,6 +299,7 @@ mapping_genome_bam_star_path = map_genome_folder + "/" + args.sample_name + "."
 mapping_genome_bam_star = mapping_genome_bam_star_path + "Aligned.sortedByCoord.out.bam"
 mapping_genome_bam_log = mapping_genome_bam_star_path + "Log.final.out"
 mapping_genome_bam = mapping_genome_bam_star_path + "bam"
+mapping_genome_bam_bw = mapping_genome_bam_star_path + "bw"
 mapping_genome_bam_idx = mapping_genome_bam + ".bai"
 mapping_genome_bam_dedup = mapping_genome_bam_star_path + "dedup.bam"
 mapping_genome_bam_dedup_metrics = mapping_genome_bam_star_path + "dedup.metrics.txt"
@@ -312,28 +313,50 @@ STAR_genome_index = args.STAR_genome_index
 Bowtie2_index = args.Bowtie2_index
 
 #generate STAR alignment statistics
-def check_STAR_alignment():
-     x = subprocess.check_output("awk -F\| 'NR==6 { print $2 }' " + mapping_genome_bam_log, shell=True)
-     ir = int(x.decode().strip())
-     pm.report_result("Input_reads", ir)
-     x = subprocess.check_output("awk -F\| 'NR==9 { print $2 }' " + mapping_genome_bam_log, shell=True)
-     ur = int(x.decode().strip())
-     pm.report_result("Unique_reads", ur)
-     x = subprocess.check_output("awk -F\| 'NR==24 { print $2 }' " + mapping_genome_bam_log, shell=True)
-     mmr = int(x.decode().strip())
-     pm.report_result("Multimapped_reads", mmr)
-     x = subprocess.check_output("awk -F\| 'NR==26 { print $2 }' " + mapping_genome_bam_log, shell=True)
-     mmxr = int(x.decode().strip())
-     pm.report_result("Multimapped_too_many_loci_reads", mmxr)
-     x1 = subprocess.check_output("awk -F\| 'NR==29 { print $2 }' " + mapping_genome_bam_log, shell=True)
-     x2 = subprocess.check_output("awk -F\| 'NR==31 { print $2 }' " + mapping_genome_bam_log, shell=True)
-     x3 = subprocess.check_output("awk -F\| 'NR==33 { print $2 }' " + mapping_genome_bam_log, shell=True)
-     unr = int(x1.decode().strip()) + int(x2.decode().strip()) + int(x3.decode().strip())
-     pm.report_result("Mapped_reads", (ur+mmr+mmxr))
-     pm.report_result("Unmapped_reads", unr)
-     pm.report_result("Mapping_rate", round((ur+mmr+mmxr)*100/ir,2))
-     pm.report_result("Unique_Mapping_rate", round((ur)*100/ir,2))
-     pm.report_result("Multi_Mapping_rate", round((mmr+mmxr)*100/ir,2))
+def check_alignment():
+    if mapper =="STAR":
+        x = subprocess.check_output("awk -F\| 'NR==6 { print $2 }' " + mapping_genome_bam_log, shell=True)
+        ir = int(x.decode().strip())
+        pm.report_result("Input_reads", ir)
+        x = subprocess.check_output("awk -F\| 'NR==9 { print $2 }' " + mapping_genome_bam_log, shell=True)
+        ur = int(x.decode().strip())
+        pm.report_result("Unique_reads", ur)
+        x = subprocess.check_output("awk -F\| 'NR==24 { print $2 }' " + mapping_genome_bam_log, shell=True)
+        mmr = int(x.decode().strip())
+        pm.report_result("Multimapped_reads", mmr)
+        x = subprocess.check_output("awk -F\| 'NR==26 { print $2 }' " + mapping_genome_bam_log, shell=True)
+        mmxr = int(x.decode().strip())
+        pm.report_result("Multimapped_too_many_loci_reads", mmxr)
+        x1 = subprocess.check_output("awk -F\| 'NR==29 { print $2 }' " + mapping_genome_bam_log, shell=True)
+        x2 = subprocess.check_output("awk -F\| 'NR==31 { print $2 }' " + mapping_genome_bam_log, shell=True)
+        x3 = subprocess.check_output("awk -F\| 'NR==33 { print $2 }' " + mapping_genome_bam_log, shell=True)
+        unr = int(x1.decode().strip()) + int(x2.decode().strip()) + int(x3.decode().strip())
+        pm.report_result("Mapped_reads", (ur+mmr+mmxr))
+        pm.report_result("Unmapped_reads", unr)
+        pm.report_result("Mapping_rate", round((ur+mmr+mmxr)*100/ir,2))
+        pm.report_result("Unique_Mapping_rate", round((ur)*100/ir,2))
+        pm.report_result("Multi_Mapping_rate", round((mmr+mmxr)*100/ir,2))
+        #mitochondrial Reads
+        x = subprocess.check_output("samtools view -c " + mapping_genome_bam + " chrM", shell=True)
+        chrM = int(x.decode().strip())
+        pm.report_result("Mitochondrial_reads", chrM)
+        #mitochondrial Reads percentage
+        pm.report_result("Mitochondrial_reads_percentage", round(chrM*100/(ur+mmr+mmxr),2))
+    else:
+        #mapped reads
+        x = subprocess.check_output("samtools view -F 4 -c " + mapping_genome_bam, shell=True)
+        mapped = int(x.decode().strip())
+        pm.report_result("Mapped_reads", mapped)
+        #mapping rate
+        trimmed = int(pm.get_stat("Trimmed_reads"))
+        mr = round(mapped*100/trimmed,2)
+        pm.report_result("Mapping_rate", mr)
+        #mitochondrial Reads
+        x = subprocess.check_output("samtools view -c " + mapping_genome_bam + " chrM", shell=True)
+        chrM = int(x.decode().strip())
+        pm.report_result("Mitochondrial_reads", chrM)
+        #mitochondrial Reads percentage
+        pm.report_result("Mitochondrial_reads_percentage", round(chrM*100/trimmed,2))
 
 if args.pipeline_mode == "repeats":
     if args.protocol == "RNA":
@@ -369,7 +392,8 @@ if args.pipeline_mode == "repeats":
         cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
         cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
 
-    pm.run([cmd, cmd2], mapping_genome_bam, follow=check_STAR_alignment)
+    cmd3 = tools.samtools + " index " + mapping_genome_bam
+    pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment)
 else: #pipeline_mode: genes
     if args.protocol == "RNA": #use STAR for RNA-seq mapping
         #annotated genomes for RNA-seq
@@ -382,8 +406,8 @@ else: #pipeline_mode: genes
                     cmd += " " + unmap_fq2 + " "
         cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
         cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
-
-        pm.run([cmd, cmd2], mapping_genome_bam, follow=check_STAR_alignment)
+        cmd3 = tools.samtools + " index " + mapping_genome_bam
+        pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment)
     else: #use bowtie2 for gene mapping
         tempdir = tempfile.mkdtemp(dir=map_genome_folder)
         os.chmod(tempdir, 0o771)
@@ -401,8 +425,8 @@ else: #pipeline_mode: genes
         cmd += " | " + tools.samtools + " sort - -@ 1"
         cmd += " -T " + tempdir
         cmd += " -o " + mapping_genome_bam
-
-        pm.run(cmd, mapping_genome_bam)
+        cmd2 = tools.samtools + " index " + mapping_genome_bam
+        pm.run([cmd, cmd2], mapping_genome_bam, follow=check_alignment)
 
 #check insert size distribution
 if args.paired_end and (not args.protocol == "RNA"):
@@ -420,9 +444,10 @@ if args.paired_end and (not args.protocol == "RNA"):
     #clean file
     pm.clean_add(is_file)
 
-#Index Bam file
-cmd = tools.samtools + " index " + mapping_genome_bam
-pm.run(cmd, mapping_genome_bam_idx)
+#####################################
+#Remove chrM reads for ATAC-seq data
+#TODO
+#####################################
 
 #Report Mapping statistics
 stats = mapping_genome_bam_star_path + "Log.final.out"
@@ -456,26 +481,42 @@ def check_duplicates():
         pm.report_result("Read_duplicates", dup)
         pm.report_result("Percent_duplication", percdup)
 
-#Remove duplicates
-cmd = tools.picard + " MarkDuplicates --VALIDATION_STRINGENCY LENIENT -I " + mapping_genome_bam
-cmd += " -O " + mapping_genome_bam_dedup + " -M " + mapping_genome_bam_dedup_metrics
-pm.run(cmd, mapping_genome_bam_dedup, follow=check_duplicates)
+########################################
+#clean BAM files if not RNA-seq Analysis
+if not args.protocol == "RNA"):
+    #Remove duplicates
+    cmd = tools.picard + " MarkDuplicates --VALIDATION_STRINGENCY LENIENT -I " + mapping_genome_bam
+    cmd += " -O " + mapping_genome_bam_dedup + " -M " + mapping_genome_bam_dedup_metrics
+    pm.run(cmd, mapping_genome_bam_dedup, follow=check_duplicates)
 
-#Remove multimapping reads based on MAPQ=255 (STAR) or MAPQ=42 (Bowtie2)
-if mapper == "STAR":
-    cmd = tools.samtools + " view -b -q 255 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
+    #Remove multimapping reads based on MAPQ=255 (STAR) or MAPQ=42 (Bowtie2)
+    #for bowtie2 mapping: also remove unmapped reads
+    if mapper == "STAR":
+        cmd = tools.samtools + " view -b -q 255 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
+    else: #mapper == Bowtie2
+        cmd = tools.samtools + " view -b -F 4 -q 42 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
+    pm.run(cmd, mapping_genome_bam_dedup_unique)
+
+    #Index deduplicated and unique BAM file
+    cmd = tools.samtools + " index " + mapping_genome_bam_dedup_unique
+    pm.run(cmd, mapping_genome_bam_dedup_unique_idx)
+
+    #report mapped reads after filtering and filtered mapping rate
+    trimmed = int(pm.get_stat("Trimmed_reads"))
+    x = subprocess.check_output("samtools view -F 4 -c " + mapping_genome_bam_dedup_unique, shell=True)
+    ur = int(x.decode().strip())
+    pm.report_result("Mapped_reads_filtered", round(ur,2))
+    pm.report_result("Mapping_rate_filtered", round((ur)*100/trimmed,2))
+
+#Generate BigWig files using Deeptools for RNA-seq use mapping_genome_bam file
+if args.protocol == "RNA"):
+    cmd = tools.bamcoverage + " --bam " + mapping_genome_bam
+    cmd += " -o " + mapping_genome_bam_bw + " --binSize 10 --normalizeUsing RPKM"
+    pm.run(cmd, mapping_genome_bam_bw)
 else:
-    cmd = tools.samtools + " view -b -q 42 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
-pm.run(cmd, mapping_genome_bam_dedup_unique)
-
-#Index deduplicated and unique BAM file
-cmd = tools.samtools + " index " + mapping_genome_bam_dedup_unique
-pm.run(cmd, mapping_genome_bam_dedup_unique_idx)
-
-#Generate BigWig files using Deeptools
-cmd = tools.bamcoverage + " --bam " + mapping_genome_bam_dedup_unique
-cmd += " -o " + mapping_genome_bam_dedup_unique_bw + " --binSize 10 --normalizeUsing RPKM"
-pm.run(cmd, mapping_genome_bam_dedup_unique_bw)
+    cmd = tools.bamcoverage + " --bam " + mapping_genome_bam_dedup_unique
+    cmd += " -o " + mapping_genome_bam_dedup_unique_bw + " --binSize 10 --normalizeUsing RPKM"
+    pm.run(cmd, mapping_genome_bam_dedup_unique_bw)
 
 #Clean Temporary Files
 pm.clean_add(mapping_genome_bam_dedup)
