@@ -100,7 +100,35 @@ createStatsSummary <- function(samples, results_subdir) {
     return(stats)
 }
 
+getBAMfiles <- function(samples, results_subdir) {
+  # get BAM files summary for downstream analysis
+  for (sample in samples) {
+    sample_output_folder <- file.path(results_subdir, sample)
+    sample_assets_file   <- file.path(sample_output_folder, "objects.tsv")
 
+    if (!file.exists(sample_assets_file)) {
+      missing_files <- missing_files + 1
+      next
+    }
+
+    t <- fread(sample_assets_file, header=FALSE,
+             col.names=c('object', 'val', 'annotation', 'V4', 'V5'))
+    # Remove complete duplicates
+    t <- t[!duplicated(t[, c('object', 'val', 'annotation', 'V4', 'V5')],
+                     fromLast=TRUE),]
+
+    t <- t[grep("BAM",t$object),]
+    t$sample_name <- sample
+    t <- t[,c("sample_name","object","val")]
+
+    if (exists("bam_files", inherits = F)) {
+      bam_files <- rbind(bam_files, t, fill=TRUE)
+    } else {
+      bam_files <- t
+    }
+  }
+  return(bam_files)
+}
 
 ################################################################################
 ##### MAIN #####
@@ -149,6 +177,40 @@ project_stats_file <- file.path(summary_dir,
 message(sprintf("Summary (n=%s): %s",
         length(unique(stats$sample_name)), project_stats_file))
 fwrite(stats, project_stats_file, sep="\t", col.names=TRUE)
+
+########################
+# Generate BAM files summary and igv_session files
+write(paste0("Creating BAM files summary..."), stdout())
+bam_files <- getBAMfiles (project_samples, results_subdir)
+bam_files_tsv <- bam_files
+bam_files_tsv$val <- paste(argv$results,bam_files_tsv$val,sep="/")
+
+project_bam_files <- file.path(argv$output,
+                                paste0(project_name, '_BAM_files.tsv'))
+message(sprintf("Summary (n=%s): %s",
+                  length(unique(stats$sample_name)), project_bam_files))
+fwrite (bam_files_tsv, project_bam_files, sep="\t", col.names=TRUE)
+
+# Generate IGV session files
+write(paste0("Creating BAM IGV session file..."), stdout())
+project_bam_igv <- file.path(argv$output,
+                                paste0(project_name, '_BAM_igv_session.xml'))
+write ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bam_igv)
+write (paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
+project_bam_igv, append =T)
+write ("\t<Resources>", project_bam_igv, append=T)
+for (row in 1:nrow(bam_files))
+{
+  sample_name <- bam_files[row,"sample_name"]
+  sample_file <- bam_files[row,"val"]
+  sample_dir <- file.path(results_subdir, sample_name)
+  bam_file <- paste(sample_dir, sample_file, sep="/")
+  #change relative directory to X:
+  bam_file <- gsub("/work/project","X:",bam_file)
+  write (paste("<Resource path=\"",bam_file,"\"/>",sep=""), project_bam_igv, append=T)
+}
+write ("\t</Resources>", project_bam_igv, append=T)
+write ("</Session>", project_bam_igv, append=T)
 
 #######################################
 # Generate FeatureCount classes summary

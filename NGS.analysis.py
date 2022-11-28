@@ -428,6 +428,9 @@ else: #pipeline_mode: genes
         cmd2 = tools.samtools + " index " + mapping_genome_bam
         pm.run([cmd, cmd2], mapping_genome_bam, follow=check_alignment)
 
+#report BAM file
+pm.report_object("BAM_mapped", mapping_genome_bam)
+
 #check insert size distribution
 if args.paired_end and (not args.protocol == "RNA"):
     is_prefix = os.path.join(QC_folder, args.sample_name)
@@ -483,7 +486,7 @@ def check_duplicates():
 
 ########################################
 #clean BAM files if not RNA-seq Analysis
-if not args.protocol == "RNA"):
+if not args.protocol == "RNA":
     #Remove duplicates
     cmd = tools.picard + " MarkDuplicates --VALIDATION_STRINGENCY LENIENT -I " + mapping_genome_bam
     cmd += " -O " + mapping_genome_bam_dedup + " -M " + mapping_genome_bam_dedup_metrics
@@ -508,19 +511,25 @@ if not args.protocol == "RNA"):
     pm.report_result("Mapped_reads_filtered", round(ur,2))
     pm.report_result("Mapping_rate_filtered", round((ur)*100/trimmed,2))
 
+    #Report deduplicated BAM file
+    pm.report_object("BAM_dedup_unique", mapping_genome_bam_dedup_unique)
+
 #Generate BigWig files using Deeptools for RNA-seq use mapping_genome_bam file
-if args.protocol == "RNA"):
+if args.protocol == "RNA":
     cmd = tools.bamcoverage + " --bam " + mapping_genome_bam
     cmd += " -o " + mapping_genome_bam_bw + " --binSize 10 --normalizeUsing RPKM"
     pm.run(cmd, mapping_genome_bam_bw)
+    #Report BigWig file
+    pm.report_object("BigWig", mapping_genome_bam_bw)
 else:
     cmd = tools.bamcoverage + " --bam " + mapping_genome_bam_dedup_unique
     cmd += " -o " + mapping_genome_bam_dedup_unique_bw + " --binSize 10 --normalizeUsing RPKM"
     pm.run(cmd, mapping_genome_bam_dedup_unique_bw)
+    #Report deduplicated BigWig file
+    pm.report_object("BigWig_dedup", mapping_genome_bam_dedup_unique_bw)
 
 #Clean Temporary Files
 pm.clean_add(mapping_genome_bam_dedup)
-
 
 ############################################################################
 #                    Read filtering for insert size                        #
