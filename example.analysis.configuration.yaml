@@ -1,15 +1,15 @@
 #specify Project name
-name: Eugenio.Arl14ep.H3K9me3
+name: Eugenio.RNA
 
 pep_version: 2.0.0
 #specify file name for sample table
 sample_table: sample.table.csv
 #specify the run mode of the pipeline [genes,repeats]
-pipeline_mode: repeats
+pipeline_mode: genes
 
 looper:
   #specify folder for results output, typically "analysis" subfolder under the main project folder
-  output_dir: "/work/project/becgsc_001/analysis/Eugenio.H3K9me3/analysis"
+  output_dir: "/work/project/becgsc_001/analysis/Eugenio.RNA/analysis.genes"
   #specify folder for file project_pipeline_interface.yaml; in you pipeline installation folder
   pipeline_interfaces: ["/work/project/becgsc_001/dev/NGS.analysis/project_pipeline_interface.yaml"]
 sample_modifiers:
@@ -20,8 +20,8 @@ sample_modifiers:
     attributes: [read1, read2]
     sources:
       #specify data folder for the specific project files, all fastq files for one project should be placed in one data folder
-      R1: "/work/project/becgsc_019/ef37_CT_KO56_T253/220929_VL00118_220_AAC3GTVM5/{fastq1}"
-      R2: "/work/project/becgsc_019/ef37_CT_KO56_T253/220929_VL00118_220_AAC3GTVM5/{fastq2}"
+      R1: "/work/project/becgsc_019/ef38_RNAseq_KO56_T253/221004_VL00118_222_AAC3GWHM5/{fastq1}"
+      R2: "/work/project/becgsc_019/ef38_RNAseq_KO56_T253/221004_VL00118_222_AAC3GWHM5/{fastq2}"
   imply:
     - if:
         organism: ["mouse", "mm10", "Mouse"]
@@ -29,6 +29,7 @@ sample_modifiers:
         genome: mm10
         STAR_RNA_index: /work/project/becgsc_001/genomes/mm10/STAR
         STAR_genome_index: /work/project/becgsc_001/genomes/mm10/STARgenome
+        Bowtie2_index: /work/project/becgsc_001/genomes/mm10/Sequence/Bowtie2Index/genome
         repeats_SAF: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.mm10.160322.SAF #Repeat coordinates for FeatureCounts
         repeats_SAFid: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.ids.mm10.160322.SAF #Repeat coordinates for FeatureCounts
         refgene_tss: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/mm10_TSS.bed
@@ -39,7 +40,8 @@ sample_modifiers:
         genome: hg38
         STAR_RNA_index: /work/project/becgsc_001/genomes/hg38/STAR
         STAR_genome_index: /work/project/becgsc_001/genomes/hg38/STARgenome
-        repeats_SAF: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.mm10.160322.SAF #Repeat coordinates for FeatureCounts
-        repeats_SAFid: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.ids.mm10.160322.SAF #Repeat coordinates for FeatureCounts
-        refgene_tss: /work/project/becgsc_001/genomes/mm10/Annotation/Genes/mm10_TSS.bed
-        genome_index: /work/project/becgsc_001/genomes/mm10/Sequence/WholeGenomeFasta/genome.fa.fai
+        Bowtie2_index: /work/project/becgsc_001/genomes/hg38/Sequence/Bowtie2Index
+        repeats_SAF: /work/project/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.hg38.291122.SAF #Repeat coordinates for FeatureCounts
+        repeats_SAFid: /work/project/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.ids.hg38.291122.SAF #Repeat coordinates for FeatureCounts
+        refgene_tss: /work/project/becgsc_001/genomes/hg38/Annotation/Genes/hg38_TSS.bed
+        genome_index: /work/project/becgsc_001/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa.fai
