@@ -486,7 +486,7 @@ def check_duplicates():
 
 ########################################
 #clean BAM files if not RNA-seq Analysis
-if not args.protocol == "RNA":
+if not (args.protocol == "RNA" and args.pipeline_mode == "genes"):
     #Remove duplicates
     cmd = tools.picard + " MarkDuplicates --VALIDATION_STRINGENCY LENIENT -I " + mapping_genome_bam
     cmd += " -O " + mapping_genome_bam_dedup + " -M " + mapping_genome_bam_dedup_metrics
@@ -515,7 +515,7 @@ if not args.protocol == "RNA":
     pm.report_object("BAM_dedup_unique", mapping_genome_bam_dedup_unique)
 
 #Generate BigWig files using Deeptools for RNA-seq use mapping_genome_bam file
-if args.protocol == "RNA":
+if (args.protocol == "RNA" and args.pipeline_mode == "genes"):
     cmd = tools.bamcoverage + " --bam " + mapping_genome_bam
     cmd += " -o " + mapping_genome_bam_bw + " --binSize 10 --normalizeUsing RPKM"
     pm.run(cmd, mapping_genome_bam_bw)
