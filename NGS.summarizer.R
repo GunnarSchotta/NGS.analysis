@@ -363,27 +363,50 @@ saveRDS(cov.se, file = IAP_coverage_rds)
 if (project_protocol == "RNA") {
 	write(paste0("Creating gene counts summary..."), stdout())
 
-	gene_counts_file <- file.path(summary_dir,
-                                paste0(project_name, '_gene_counts_summary.tsv'))
 	for (sample in project_samples) {
 		sample_output_folder <- file.path(results_subdir, sample)
 		sample_gc_file   <- file.path(sample_output_folder, paste("aligned_",genome,sep=""),
                                 paste(sample,".ReadsPerGene.out.tab",sep=""))
 		t <- fread(sample_gc_file, header=F,
-				col.names=c('geneID', 'unstranded', sample, 'antisense'), skip = 4)
-		if (exists("gct", inherits = F)) {
-			gct <- cbind(gct, t[,3])
-		} else {
-			gct <- t[,c(1,3)]
-		}
-	}
-	#fwrite(gct, gene_counts_file, sep="\t", col.names=TRUE)
-
-	#Summarized Experiment
-	gene_counts_rds <- file.path(summary_dir,
-                                paste0(project_name, '_gene_counts_summary.rds'))
-	gcm <- as.matrix(gct[,2:ncol(gct)])
-	rownames(gcm) <- gct$geneID
+				col.names=c('geneID', sample, 'read1', 'read2'), skip = 4)
+	  #unstranded (col 2)
+	  if (exists("unstranded", inherits = F)) {
+		  unstranded <- cbind(unstranded, t[,2])
+	  } else {
+		  unstranded <- t[,c(1,2)]
+	  }
+	  #read1 (col 3)
+	  colnames(t) <- c('geneID', 'unstranded', sample, 'read2')
+	  if (exists("read1", inherits = F)) {
+		    read1 <- cbind(read1, t[,3])
+		  } else {
+		    read1 <- t[,c(1,3)]
+	  }
+	  #read2 (col 4)
+	  colnames(t) <- c('geneID', 'unstranded', 'read1', sample)
+	  if (exists("read2", inherits = F)) {
+		    read2 <- cbind(read2, t[,4])
+		  } else {
+		    read2 <- t[,c(1,4)]
+	  }
+  }
+	
+  #estimate sense reads which should have more coverage
+  if (sum(read1[,c(2:ncol(read1))]) > sum(read2[,c(2:ncol(read2))])) {sense <- read1} else {sense <- read2}
+	
+  #Summarized Experiment
+	#unstranded
+  unstranded_gene_counts_rds <- file.path(summary_dir,
+                                paste0(project_name, '_unstranded_gene_counts_summary.rds'))
+	gcm <- as.matrix(unstranded[,2:ncol(unstranded)])
+	rownames(gcm) <- unstranded$geneID
 	gc.se <- SummarizedExperiment(assays = list(counts=gcm), colData = sample_table)
-	saveRDS(gc.se, file = gene_counts_rds)
+	saveRDS(gc.se, file = unstranded_gene_counts_rds)
+	#sense reads
+	sense_gene_counts_rds <- file.path(summary_dir,
+	                                        paste0(project_name, '_sense_gene_counts_summary.rds'))
+	gcm <- as.matrix(sense[,2:ncol(sense)])
+	rownames(gcm) <- sense$geneID
+	gc.se <- SummarizedExperiment(assays = list(counts=gcm), colData = sample_table)
+	saveRDS(gc.se, file = sense_gene_counts_rds)
 }
