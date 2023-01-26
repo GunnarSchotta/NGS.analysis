@@ -5,7 +5,7 @@ NGS Analysis Collator - project-level pipeline
 
 __author__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "0.0.1"
+__version__ = "1.1.2"
 
 from argparse import ArgumentParser
 import os

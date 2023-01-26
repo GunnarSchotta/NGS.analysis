@@ -40,7 +40,7 @@ sample_modifiers:
         genome: hg38
         STAR_RNA_index: /work/project/becgsc_001/genomes/hg38/STAR
         STAR_genome_index: /work/project/becgsc_001/genomes/hg38/STARgenome
-        Bowtie2_index: /work/project/becgsc_001/genomes/hg38/Sequence/Bowtie2Index
+        Bowtie2_index: /work/project/becgsc_001/genomes/hg38/Sequence/Bowtie2Index/genome
         repeats_SAF: /work/project/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.hg38.291122.SAF #Repeat coordinates for FeatureCounts
         repeats_SAFid: /work/project/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.ids.hg38.291122.SAF #Repeat coordinates for FeatureCounts
         refgene_tss: /work/project/becgsc_001/genomes/hg38/Annotation/Genes/hg38_TSS.bed
