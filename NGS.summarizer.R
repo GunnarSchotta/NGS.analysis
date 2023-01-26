@@ -392,7 +392,7 @@ if (project_protocol == "RNA") {
   }
 	
   #estimate sense reads which should have more coverage
-  if (sum(read1[,c(2:ncol(read1))]) > sum(read2[,c(2:ncol(read2))])) {sense <- read1} else {sense <- read2}
+  if (sum(read1[,2:ncol(read1)]) > sum(read2[,2:ncol(read2)])) {sense <- read1} else {sense <- read2}
 	
   #Summarized Experiment
 	#unstranded
