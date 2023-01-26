@@ -5,7 +5,7 @@ NGS analysis
 
 __auhor__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 from argparse import ArgumentParser
