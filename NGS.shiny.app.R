@@ -248,7 +248,7 @@ shinyApp(
         geom_point (data = up.shrink, aes(baseMean,log2FoldChange,label=geneID), color = "coral1") +
         geom_point (data = down.shrink, aes(baseMean,log2FoldChange,label=geneID), color = "steelblue3") +
         labs (x="average normalized Expression",
-              y=paste("log2fc ",contrast.a," vs. ",contrast.b, sep="")) +
+              y=paste("log2fc ",contrast.b," vs. ",contrast.a, sep="")) +
         theme(axis.title.y = element_text(size = rel(0.8)))
 
       detable = as.data.frame(des.shrink)
