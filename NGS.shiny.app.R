@@ -4,16 +4,15 @@ library(ggplot2)
 library(DT)
 library(plotly)
 library(shinyjs)
+library(shinyFiles)
 
 shinyApp(
   ui = fluidPage(
     useShinyjs(),
     sidebarLayout(
       sidebarPanel(
+        shinyFilesButton('rds', 'Choose RDS File', 'Select RDS File', multiple = FALSE),
         fluidRow(
-          fileInput("rds.file", "Choose RDS File",
-                  multiple = FALSE,
-                  accept = ".rds"),
           column(6,
             selectInput("select.study.a", label = ("Study A"),
                   choices = character(0)),
@@ -36,6 +35,7 @@ shinyApp(
             )
           ),
           actionButton("analyze", "Analyze"),
+          actionButton("export.tables", "Export Tables"),
           plotOutput("pca.analysis")
         ),
       mainPanel(
@@ -47,13 +47,26 @@ shinyApp(
   server = function(input, output, session) {
     #max upload size
     options(shiny.maxRequestSize = 500 * 1024^2)
-
-    observe({
-      if (isEmpty(input$rds.file$datapath)) {shinyjs::disable("analyze")
-      } else {
-        shinyjs::enable("analyze")}
-    })
-
+    shinyjs::disable("analyze")
+    shinyjs::disable("export.tables")
+    
+    volumes <- getVolumes()()
+    
+    #RDS File Chooser
+    shinyFileChoose(input = input, id = 'rds', session=session, 
+                    roots=volumes, filetype = list(rds='rds'))
+    
+    #load rds file if requested
+    se <- reactive (
+      {
+        if (!is.integer(input$rds))
+        {
+          rds.file <- parseFilePaths(roots = volumes, selection = input$rds)
+          se <- readRDS(rds.file$datapath)
+          return(list("se"=se, "sl"=colData(se)))
+        }
+      })
+    
     #enable analyze when sample selection changes
     observeEvent(input$select.study.a, {
       req(input$select.study.a, input$select.study.a!="NA")
@@ -107,18 +120,6 @@ shinyApp(
       #activate analyze when selection was changed
       if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
     })
-
-    #load rds file if requested
-    se <- reactive (
-      {
-        rds <- input$rds.file
-
-        if (!isEmpty(rds$datapath))
-        {
-        se <- readRDS(rds$datapath)
-        return(list("se"=se, "sl"=colData(se)))
-        }
-      })
 
     #currently selected samples
     samples <- reactive (
@@ -177,6 +178,18 @@ shinyApp(
       }
     })
 
+    #export analysis tables upon clickin export tables
+    observeEvent(input$export.tables, {
+      plots <- deseq.analysis()
+      data <- plots$detable
+      contrast <- plots$contrast
+
+      rds.file <- parseFilePaths(roots = volumes, selection = input$rds)
+      export.path <- dirname(rds.file$datapath)
+      export.file <- paste(export.path,"/",contrast,".lfcshrink.table.txt", sep="")
+      write.table (data, file = export.file, sep="\t", col.names = NA)
+    })
+    
     #Deseq analysis, summarized experiment, study, target, comparison A vs B
     deseq.analysis <- reactive (
     {
@@ -203,7 +216,7 @@ shinyApp(
       sample.list$contrast <- paste(sample.list$study, sample.list$cell_type, sample.list$target, sample.list$genotype, sep=".")
 
       setProgress(message = "Deseq2 analysis", value = 0.1)
-
+      
       dds <- DESeqDataSetFromMatrix(countData = dt, colData = sample.list, design = ~ contrast)
       dds <- dds[ rowMeans(counts(dds)) > 10, ]
       des <- DESeq(dds)
@@ -252,14 +265,18 @@ shinyApp(
         theme(axis.title.y = element_text(size = rel(0.8)))
 
       detable = as.data.frame(des.shrink)
+      
+      #enable table export of result files
+      shinyjs::enable("export.tables")
 
-      return (list("pca"=pca, "degenes"=degenes, "detable"=detable))
+      return (list("pca"=pca, "degenes"=degenes, "detable"=detable, 
+                   "contrast"=paste(contrast.b,"_vs_",contrast.a,sep = "")))
       })
     })
 
     #Render plot according to table selection
     observeEvent(input$detable_rows_selected, ignoreNULL = FALSE, {
-      if (!isEmpty(input$rds.file$datapath))
+      if (!is.integer(input$rds))
       {
         plots <- deseq.analysis()
         data <- plots$detable
