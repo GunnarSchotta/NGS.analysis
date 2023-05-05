@@ -8,7 +8,7 @@ command_template: >
   --mem { compute.mem }
   --sample-name { sample.sample_name }
   --input { sample.read1 }
-  {% if sample.read2 is defined %} --input2 { sample.read2 } {% endif %}
+  {% if sample.read_type == "paired" %} --input2 { sample.read2 } {% endif %}
   --single-or-paired { sample.read_type }
   --genome { sample.genome }
   --protocol { sample.protocol }
