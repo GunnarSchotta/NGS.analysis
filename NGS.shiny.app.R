@@ -222,8 +222,22 @@ shinyApp(
       des <- DESeq(dds)
 
       setProgress(message = "vsd analysis", value = 0.6)
-
-      vsd <- vst(dds, blind=F)
+      
+      vst_success <- TRUE
+      
+      # Attempt to apply vst, and if it fails, set the flag to FALSE
+      tryCatch({
+        vsd <- vst(dds, blind = FALSE)
+      }, error = function(e) {
+        warning("vst failed. Applying varianceStabilizingTransformation instead.")
+        vst_success <<- FALSE
+      })
+      
+      # If vst was unsuccessful, apply varianceStabilizingTransformation
+      if (!vst_success) {
+        vsd <- varianceStabilizingTransformation(dds)
+      }
+      
       mat <- assay(vsd)
       assay(vsd) <- mat
 
