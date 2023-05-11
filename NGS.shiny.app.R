@@ -70,18 +70,48 @@ shinyApp(
     #enable analyze when sample selection changes
     observeEvent(input$select.study.a, {
       req(input$select.study.a, input$select.study.a!="NA")
+      sl <- se()$sl[se()$sl$study == input$select.study.a, ]
+      updateSelectInput(session, "select.celltype.a", choices = unique(sl$cell_type))
+      updateSelectInput(session, "select.target.a", choices = unique(sl$target))
+      updateSelectInput(session, "select.genotype.a", choices = unique(sl$genotype))
       if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
     })
     observeEvent(input$select.study.b, {
       req(input$select.study.b, input$select.study.b!="NA")
+      sl <- se()$sl[se()$sl$study == input$select.study.b, ]
+      updateSelectInput(session, "select.celltype.b", choices = unique(sl$cell_type))
+      updateSelectInput(session, "select.target.b", choices = unique(sl$target))
+      updateSelectInput(session, "select.genotype.b", choices = unique(sl$genotype))
       if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
     })
     observeEvent(input$select.celltype.a, {
       req(input$select.celltype.a, input$select.celltype.a!="NA")
+      sl <- se()$sl[se()$sl$study == input$select.study.a & se()$sl$cell_type == input$select.celltype.a, ]
+      updateSelectInput(session, "select.target.a", choices = unique(sl$target))
+      updateSelectInput(session, "select.genotype.a", choices = unique(sl$genotype))
       if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
     })
     observeEvent(input$select.celltype.b, {
       req(input$select.celltype.b, input$select.celltype.b!="NA")
+      sl <- se()$sl[se()$sl$study == input$select.study.b & se()$sl$cell_type == input$select.celltype.b, ]
+      updateSelectInput(session, "select.target.b", choices = unique(sl$target))
+      updateSelectInput(session, "select.genotype.b", choices = unique(sl$genotype))
+      if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
+    })
+    observeEvent(input$select.target.a, {
+      req(input$select.target.a, input$select.target.a!="NA")
+      sl <- se()$sl[se()$sl$study == input$select.study.a & 
+                      se()$sl$cell_type == input$select.celltype.a &
+                      se()$sl$target == input$select.target.a, ]
+      updateSelectInput(session, "select.genotype.a", choices = unique(sl$genotype))
+      if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
+    })
+    observeEvent(input$select.target.b, {
+      req(input$select.target.b, input$select.target.b!="NA")
+      sl <- se()$sl[se()$sl$study == input$select.study.b & 
+                      se()$sl$cell_type == input$select.celltype.b &
+                      se()$sl$target == input$select.target.b, ]
+      updateSelectInput(session, "select.genotype.b", choices = unique(sl$genotype))
       if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
     })
     observeEvent(input$select.genotype.a, {
@@ -90,34 +120,6 @@ shinyApp(
     })
     observeEvent(input$select.genotype.b, {
       req(input$select.genotype.b, input$select.genotype.b!="NA")
-      if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
-    })
-
-    #set genotypes according to target and study
-    observeEvent(input$select.target.a, {
-      req(input$select.target.a, input$select.target.a!="NA")
-
-      t <- input$select.target.a
-      s <- input$select.study.a
-      sl <- se()$sl
-      sl <- sl[sl$target == t & sl$study == s, ]
-      genotype <- as.list(unique(sl$genotype))
-      names(genotype) <- genotype
-      updateSelectInput (session, "select.genotype.a", choices = genotype)
-      #activate analyze when selection was changed
-      if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
-    })
-    observeEvent(input$select.target.b, {
-      req(input$select.target.b, input$select.target.b!="NA")
-
-      t <- input$select.target.b
-      s <- input$select.study.b
-      sl <- se()$sl
-      sl <- sl[sl$target == t & sl$study == s, ]
-      genotype <- as.list(unique(sl$genotype))
-      names(genotype) <- genotype
-      updateSelectInput (session, "select.genotype.b", choices = genotype)
-      #activate analyze when selection was changed
       if (samples()$a != samples()$b) {shinyjs::enable("analyze")} else {shinyjs::disable("analyze")}
     })
 
