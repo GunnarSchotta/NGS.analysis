@@ -142,8 +142,6 @@ project_name    <- config(prj)$name
 pipeline_mode <- config(prj)$pipeline_mode
 project_protocol <- unique(invisible(suppressWarnings(pepr::sampleTable(prj)$protocol)))
 project_samples <- pepr::sampleTable(prj)$sample_name
-#sample_table    <- data.table(sample_name=pepr::sampleTable(prj)$sample_name,
-#                              genome=pepr::sampleTable(prj)$genome)
 
 sample_table <- data.table(prj@samples)
 
@@ -291,8 +289,6 @@ if (pipeline_mode == "repeats")
     }
   }
 
-  #fwrite(fcid, feature_counts_id_file, sep="\t", col.names=TRUE)
-
   #generate SummarizedExperiment
   fcidm <- as.matrix(fcid[,7:ncol(fcid)])
   rownames(fcidm) <- fcid$repeatID
@@ -360,10 +356,14 @@ saveRDS(cov.se, file = IAP_coverage_rds)
 
 ################################################################################
 #Summarize Gene Counts for RNA-seq data (use column 3 with stranded information)
-if (project_protocol == "RNA") {
+#select RNA-seq samples
+RNA_samples <- sample_table[sample_table$protocol == "RNA", "sample_name"]
+
+#if RNA samples were processed
+if (nrow(RNA_samples) > 0) {
 	write(paste0("Creating gene counts summary..."), stdout())
 
-	for (sample in project_samples) {
+	for (sample in RNA_samples$sample_name) {
 		sample_output_folder <- file.path(results_subdir, sample)
 		sample_gc_file   <- file.path(sample_output_folder, paste("aligned_",genome,sep=""),
                                 paste(sample,".ReadsPerGene.out.tab",sep=""))
@@ -400,13 +400,13 @@ if (project_protocol == "RNA") {
                                 paste0(project_name, '_unstranded_gene_counts_summary.rds'))
 	gcm <- as.matrix(unstranded[,2:ncol(unstranded)])
 	rownames(gcm) <- unstranded$geneID
-	gc.se <- SummarizedExperiment(assays = list(counts=gcm), colData = sample_table)
+	gc.se <- SummarizedExperiment(assays = list(counts=gcm), colData = sample_table[sample_table$sample_name %in% RNA_samples$sample_name,])
 	saveRDS(gc.se, file = unstranded_gene_counts_rds)
 	#sense reads
 	sense_gene_counts_rds <- file.path(summary_dir,
 	                                        paste0(project_name, '_sense_gene_counts_summary.rds'))
 	gcm <- as.matrix(sense[,2:ncol(sense)])
 	rownames(gcm) <- sense$geneID
-	gc.se <- SummarizedExperiment(assays = list(counts=gcm), colData = sample_table)
+	gc.se <- SummarizedExperiment(assays = list(counts=gcm), colData = sample_table[sample_table$sample_name %in% RNA_samples$sample_name,])
 	saveRDS(gc.se, file = sense_gene_counts_rds)
 }
