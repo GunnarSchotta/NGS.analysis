@@ -1,7 +1,7 @@
 pipeline_name: NGS.analysis
 pipeline_type: project
 output_schema: NGS.analysis_output_schema.yaml
-path: /work/project/becgsc_001/dev/NGS.analysis/NGS.analysis.collator.py
+path: /store24/project24/becgsc_001/dev/NGS.analysis/NGS.analysis.collator.py
 command_template: >
   {pipeline.path}
   --config {looper.pep_config}

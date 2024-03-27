@@ -232,7 +232,7 @@ trim_cmd_chunks = [
     trimming_prefix + "_R1_unpaired.fq" if args.paired_end else None,
     trimmed_fastq_R2 if args.paired_end else None,
     trimming_prefix + "_R2_unpaired.fq" if args.paired_end else None,
-    "ILLUMINACLIP:" + adapters + ":2:30:10 MINLEN:36"
+    "ILLUMINACLIP:" + adapters + ":2:30:10 MINLEN:30"
 ]
 trim_cmd = build_command(trim_cmd_chunks)
 
@@ -364,7 +364,7 @@ if args.pipeline_mode == "repeats":
         mapper = "STAR"
         cmd = "STAR" + " --runThreadN " + str(pm.cores)
         cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
-        cmd += " SortedByCoordinate --runMode alignReads --outFilterMultimapNmax 5000"
+        cmd += " Unsorted --runMode alignReads --outFilterMultimapNmax 5000"
         cmd += " --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random"
         cmd += " --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --seedSearchStartLmax 30"
         cmd += " --alignTranscriptsPerReadNmax 30000 --alignWindowsPerReadNmax 30000"
@@ -374,12 +374,12 @@ if args.pipeline_mode == "repeats":
         if args.paired_end:
                     cmd += " " + unmap_fq2 + " "
         cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
-        cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
+        cmd2 = tools.samtools + " sort " + mapping_genome_bam_star + " -o " + mapping_genome_bam
     else:
         #non-annotated genomes and for others
         mapper = "STAR"
         cmd = "STAR" + " --runThreadN " + str(pm.cores)
-        cmd += " --outSAMtype BAM SortedByCoordinate --runMode alignReads --outFilterMultimapNmax 5000"
+        cmd += " --outSAMtype BAM Unsorted --runMode alignReads --outFilterMultimapNmax 5000"
         cmd += " --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random"
         cmd += " --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --alignIntronMax 1"
         cmd += " --alignMatesGapMax 350 --seedSearchStartLmax 30 --alignTranscriptsPerReadNmax 30000"
@@ -390,7 +390,7 @@ if args.pipeline_mode == "repeats":
         if args.paired_end:
                     cmd += " " + unmap_fq2 + " "
         cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
-        cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
+        cmd2 = tools.samtools + " sort " + mapping_genome_bam_star + " -o " + mapping_genome_bam
 
     cmd3 = tools.samtools + " index " + mapping_genome_bam
     pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment)
@@ -400,12 +400,12 @@ else: #pipeline_mode: genes
         mapper = "STAR"
         cmd = "STAR" + " --runThreadN " + str(pm.cores)
         cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
-        cmd += " SortedByCoordinate --runMode alignReads --genomeDir " + STAR_RNA_index
+        cmd += " Unsorted --runMode alignReads --genomeDir " + STAR_RNA_index
         cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
         if args.paired_end:
                     cmd += " " + unmap_fq2 + " "
         cmd += " --outFileNamePrefix " + mapping_genome_bam_star_path
-        cmd2 = "mv " + mapping_genome_bam_star + " " + mapping_genome_bam
+        cmd2 = tools.samtools + " sort " + mapping_genome_bam_star + " -o " + mapping_genome_bam
         cmd3 = tools.samtools + " index " + mapping_genome_bam
         pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment)
     else: #use bowtie2 for gene mapping

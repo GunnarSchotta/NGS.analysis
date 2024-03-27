@@ -1,6 +1,6 @@
 pipeline_name: NGS.analysis
 pipeline_type: sample
-path: /work/project/becgsc_001/dev/NGS.analysis/NGS.analysis.py
+path: /store24/project24/becgsc_001/dev/NGS.analysis/NGS.analysis.py
 command_template: >
   {pipeline.path}
   --output-parent { looper.results_subdir }
@@ -22,7 +22,7 @@ command_template: >
   --repeats_SAFid { sample.repeats_SAFid }
 
 compute:
-  mem: 50G
-  cores: 32
-  partition: slim16
+  mem: 150G
+  cores: 16
+  partition: slim18
   time: 8:00:00
