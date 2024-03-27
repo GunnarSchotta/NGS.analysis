@@ -296,7 +296,7 @@ ngstk.make_dir(QC_folder)
 
 # Primary endpoint file following alignment and deduplication
 mapping_genome_bam_star_path = map_genome_folder + "/" + args.sample_name + "."
-mapping_genome_bam_star = mapping_genome_bam_star_path + "Aligned.sortedByCoord.out.bam"
+mapping_genome_bam_star = mapping_genome_bam_star_path + "Aligned.out.bam"
 mapping_genome_bam_log = mapping_genome_bam_star_path + "Log.final.out"
 mapping_genome_bam = mapping_genome_bam_star_path + "bam"
 mapping_genome_bam_bw = mapping_genome_bam_star_path + "bw"
