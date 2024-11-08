@@ -467,13 +467,13 @@ def check_duplicates():
         #Percent Duplication (column 9)
         x = subprocess.check_output("awk -F'\t' 'NR==8 {print $9}' " + mapping_genome_bam_dedup_metrics, shell=True)
         percdup = float(x.decode().strip())
-        #Estimated Library Size (column 10)
-        x = subprocess.check_output("awk -F'\t' 'NR==8 {print $10}' " + mapping_genome_bam_dedup_metrics, shell=True)
-        libsize = int(x.decode().strip())
+        #Estimated Library Size (column 10) - does not seem to be consistently reported, so removed this parameter
+        #x = subprocess.check_output("awk -F'\t' 'NR==8 {print $10}' " + mapping_genome_bam_dedup_metrics, shell=True)
+        #libsize = int(x.decode().strip())
         pm.report_result("Read_pair_duplicates", dup)
         pm.report_result("Read_pair_optical_duplicates", optdup)
         pm.report_result("Percent_duplication", percdup)
-        pm.report_result("Estimated_library_size", libsize)
+        #pm.report_result("Estimated_library_size", libsize)
     else:
         #Read Duplicates (column 6)
         x = subprocess.check_output("awk -F'\t' 'NR==8 {print $6}' " + mapping_genome_bam_dedup_metrics, shell=True)
