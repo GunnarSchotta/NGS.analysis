@@ -57,13 +57,13 @@ parser.add_argument("--repeats_SAF", dest="repeats_SAF", type=str,
 parser.add_argument("--repeats_SAFid", dest="repeats_SAFid", type=str,
                         default=None,
                         help="Repeats SAF file for featureCounts, individual Repeats")
-parser.add_argument("--pipestat-config", default=None,
-                    help="Looper-generated pipestat configuration file")
+#parser.add_argument("--pipestat-config", default=None,
+#                    help="Looper-generated pipestat configuration file")
 
 args = parser.parse_args()
 args.paired_end = args.single_or_paired.lower() == "paired"
 
-print(f"Provided pipestat_config path: {args.pipestat_config}")
+""" print(f"Provided pipestat_config path: {args.pipestat_config}")
 if args.pipestat_config:
     with open(args.pipestat_config, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -76,7 +76,7 @@ else:
 if not args.input:
     parser.print_help()
     raise SystemExit
-
+ """
 # Initialize, creating global PipelineManager and NGSTk instance for
 # access in ancillary functions outside of main().
 outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
@@ -102,7 +102,9 @@ if getattr(args, "pipestat_config", None):
 else:
     # Standalone fallback: provide a schema that ships with your pipeline
     pipestat_kwargs["pipestat_schema"] = os.path.join(SCRIPT_DIR, "pipestat_results_schema.yaml") """
-if args.pipestat_config:
+
+
+""" if args.pipestat_config:
     with open(args.pipestat_config, 'r') as f:
         config_data = yaml.safe_load(f)
     
@@ -114,20 +116,23 @@ if args.pipestat_config:
     pipestat_schema = config_data.get('schema_path')
 else:
     # Fallback if no config (though Looper should always provide it)
-    pipestat_results_file = None
+    pipestat_results_file = None """
 
 global pm
 pm = pypiper.PipelineManager(
     name="NGS.analysis",
     outfolder=outfolder,
+    pipestat_record_identifier=args.sample_name,
     args=args,
-    recover=args.recover,
+    version=__version__
+)
+"""     recover=args.recover,
     pipestat_config=args.pipestat_config,
     pipestat_results_file=pipestat_results_file,  # Now explicitly set
     pipestat_schema=pipestat_schema,  # Ensures config's schema is used
-    pipestat_record_identifier=args.sample_name
+    
     #    **pipestat_kwargs,
- )
+ ) """
 
 global ngstk
 ngstk = pypiper.NGSTk(pm=pm)

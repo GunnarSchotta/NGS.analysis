@@ -21,7 +21,6 @@ sample_interface:
     --genome_index {sample.genome_index}
     --repeats_SAF {sample.repeats_SAF}
     --repeats_SAFid {sample.repeats_SAFid}
-    --pipestat-config {pipestat.config_file}
   
 compute:
   partition: slim16

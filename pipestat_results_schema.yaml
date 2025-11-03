@@ -2,7 +2,7 @@ title: NGS.analysis pipestat schema
 description: Results reported by the NGS.analysis pipeline.
 type: object
 properties:
-  pipeline_name: NGS.analysis
+  pipeline_name: "NGS.analysis"
   samples:
     type: array
     items:
