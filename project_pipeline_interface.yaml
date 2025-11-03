@@ -1,17 +1,20 @@
 pipeline_name: NGS.analysis
-pipeline_type: project
-output_schema: NGS.analysis_output_schema.yaml
-path: /store24/project24/becgsc_001/dev/NGS.analysis/NGS.analysis.collator.py
-command_template: >
-  {pipeline.path}
-  --config {looper.pep_config}
-  -O {looper.output_dir}
-  -P {compute.cores}
-  -M {compute.mem}
-  -n {project.name}
-  -r {looper.results_subdir}
+output_schema: /store24/project24/becgsc_001/dev/NGS.analysis.v2/NGS.analysis/NGS.analysis_output_schema.yaml
+
+project_interface:
+  command_template: >
+    python /store24/project24/becgsc_001/dev/NGS.analysis.v2/NGS.analysis/NGS.analysis.collator.py
+    --config {looper.pep_config}
+    -O {looper.output_dir}
+    -P {compute.cores}
+    -M {compute.mem}
+    -n {project.name}
+    -r {looper.output_dir}
+    --pipestat-config {pipestat.config_file}
+
+# Submission resources for the project job (SLURM)
 compute:
   mem: 20G
   cores: 32
   partition: slim16
-  time: 8:00:00
+  time: 08:00:00

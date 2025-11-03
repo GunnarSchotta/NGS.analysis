@@ -1,10 +1,10 @@
 #! /usr/bin/env Rscript
 #
-# NGS.repeats.summarizer.R
+# NGS.summarizer.R
 #
 # Interface to produce project level summary files and reports
 # for NGS output when called using `looper`
-# usage: Rscript /path/to/Rscript/NGS.repeats.summarizer.R
+# usage: Rscript /path/to/Rscript/NGS.summarizer.R
 #        /path/to/project_config.yaml
 # Depends: R (>= 3.5.1)
 # Imports: PEPATACr, argparser
@@ -33,6 +33,7 @@ library(pepr)
 library(data.table)
 library(reshape2)
 library(ggplot2)
+library(yaml) 
 library(SummarizedExperiment)
 
 # Create a parser
@@ -58,77 +59,59 @@ argv <- parse_args(p)
 #' @param samples A PEP project character vector of sample names
 #' @param results_subdir A PEP project results subdirectory path
 #' @export
+
 createStatsSummary <- function(samples, results_subdir) {
-    # Create stats_summary file
-    missing_files   <- 0
-    write(paste0("Creating stats summary..."), stdout())
+    write(paste0("Creating stats summary from YAML..."), stdout())
+    stats <- NULL
+    missing_files <- 0
 
     for (sample in samples) {
-        sample_output_folder <- file.path(results_subdir, sample)
-        sample_assets_file   <- file.path(sample_output_folder, "stats.tsv")
-
-        if (!file.exists(sample_assets_file)) {
+        sample_dir  <- file.path(results_subdir, sample)
+        yaml_file   <- file.path(sample_dir, "stats.yaml")
+        if (!file.exists(yaml_file)) {
             missing_files <- missing_files + 1
             next
         }
-
-        t <- fread(sample_assets_file, header=FALSE,
-                   col.names=c('stat', 'val', 'annotation'))
-        # Remove complete duplicates
-        t <- t[!duplicated(t[, c('stat', 'val', 'annotation')],
-               fromLast=TRUE),]
-        max_time <- suppressWarnings(max(t[stat=="Time",]$val))
-        # Keep max(Time) and last(Success)
-        t <- t[!duplicated(t[, c('stat', 'annotation')],
-               fromLast=TRUE),]
-        t[stat=="Time",]$val <- max_time
-
-        t2 <- data.table(t(t$val))
-        colnames(t2) <- t$stat
-        t2 <- cbind(data.table(sample_name=sample), t2)
-        if (exists("stats", inherits = F)) {
-            stats <- rbind(stats, t2, fill=TRUE)
-        } else {
-            stats <- t2
+        y <- yaml::read_yaml(yaml_file)
+        # Assume a single top-level pipeline key (e.g., "NGS.analysis")
+        pipe_name <- names(y)[1]
+        node <- tryCatch(y[[pipe_name]][["sample"]][[sample]], error = function(e) NULL)
+        if (is.null(node)) {
+            warning(sprintf("No stats for sample %s in %s", sample, yaml_file))
+            next
         }
+        # Flatten one sample's list into a 1-row data.table
+        # Coerce all scalars to character to avoid type clashes, then convert numerics later if you wish
+        t2 <- as.data.table(as.list(lapply(node, function(x) if (length(x) == 1) x else NA)))
+        t2[, sample_name := sample]
+        setcolorder(t2, c("sample_name", setdiff(names(t2), "sample_name")))
+        if (is.null(stats)) stats <- t2 else stats <- rbind(stats, t2, fill = TRUE)
     }
-
-    if (missing_files > 0) {
-        warning(sprintf("Stats files missing for %s samples.", missing_files))
-    }
-
+    if (missing_files > 0) warning(sprintf("Stats files missing for %s samples.", missing_files))
     return(stats)
 }
 
-getResultFiles <- function(samples, results_subdir, filter) {
-  # get BAM files summary for downstream analysis
-  for (sample in samples) {
-    sample_output_folder <- file.path(results_subdir, sample)
-    sample_assets_file   <- file.path(sample_output_folder, "objects.tsv")
 
-    if (!file.exists(sample_assets_file)) {
-      missing_files <- missing_files + 1
-      next
+getResultFilesFromYaml <- function(samples, results_subdir, field) {
+    # field should be "mapped_bam" or "bigwig"
+    rf <- NULL
+    for (sample in samples) {
+        yaml_file <- file.path(results_subdir, sample, "stats.yaml")
+        if (!file.exists(yaml_file)) next
+        y <- yaml::read_yaml(yaml_file)
+        pipe_name <- names(y)[1]
+        node <- tryCatch(y[[pipe_name]][["sample"]][[sample]], error = function(e) NULL)
+        if (is.null(node)) next
+        if (!is.null(node[[field]])) {
+            t <- data.table(sample_name = sample,
+                            object = field,
+                            val = as.character(node[[field]]))
+            rf <- if (is.null(rf)) t else rbind(rf, t, fill = TRUE)
+        }
     }
-
-    t <- fread(sample_assets_file, header=FALSE,
-             col.names=c('object', 'val', 'annotation', 'V4', 'V5'))
-    # Remove complete duplicates
-    t <- t[!duplicated(t[, c('object', 'val', 'annotation', 'V4', 'V5')],
-                     fromLast=TRUE),]
-
-    t <- t[grep(filter,t$object),]
-    t$sample_name <- sample
-    t <- t[,c("sample_name","object","val")]
-
-    if (exists("result_files", inherits = F)) {
-      result_files <- rbind(result_files, t, fill=TRUE)
-    } else {
-      result_files <- t
-    }
-  }
-  return(result_files)
+    return(rf)
 }
+
 
 ################################################################################
 ##### MAIN #####
@@ -164,75 +147,62 @@ if (dir.exists(argv$results)) {
 }
 
 ########################
-# Generate stats summary
-stats  <- createStatsSummary(project_samples, results_subdir)
+# Generate stats summary (now from YAML)
+stats <- createStatsSummary(project_samples, results_subdir)
+if (is.null(stats) || nrow(stats) == 0) quit()
+project_stats_file <- file.path(summary_dir, paste0(project_name, '_stats_summary.tsv'))
+fwrite(stats, project_stats_file, sep = "\t", col.names = TRUE)
 
-if (nrow(stats) == 0) {
-    quit()
-}
-project_stats_file <- file.path(summary_dir,
-                                paste0(project_name, '_stats_summary.tsv'))
-message(sprintf("Summary (n=%s): %s",
-        length(unique(stats$sample_name)), project_stats_file))
-fwrite(stats, project_stats_file, sep="\t", col.names=TRUE)
 
 ########################
 # Generate BAM files summary and igv_session files
 write(paste0("Creating BAM files summary..."), stdout())
-bam_files <- getResultFiles (project_samples, results_subdir, "BAM_mapped")
-bam_files_tsv <- bam_files
-bam_files_tsv$val <- paste(argv$results,bam_files_tsv$val,sep="/")
+bam_files <- getResultFilesFromYaml(project_samples, results_subdir, "mapped_bam")
+bam_files_tsv <- copy(bam_files)
+# For compatibility with your previous TSV (project-level absolute path column)
+# If you still want to prepend argv$results, keep it; otherwise paths are already absolute in YAML.
+bam_files_tsv$val <- ifelse(startsWith(bam_files_tsv$val, "/"),
+                            bam_files_tsv$val,
+                            file.path(argv$results, bam_files_tsv$val))
 
-project_bam_files <- file.path(argv$output,
-                                paste0(project_name, '_BAM_files.tsv'))
-message(sprintf("Summary (n=%s): %s",
-                  length(unique(stats$sample_name)), project_bam_files))
-fwrite (bam_files_tsv, project_bam_files, sep="\t", col.names=TRUE)
+project_bam_files <- file.path(argv$output, paste0(project_name, '_BAM_files.tsv'))
+message(sprintf("Summary (n=%s): %s", length(unique(stats$sample_name)), project_bam_files))
+fwrite(bam_files_tsv, project_bam_files, sep = "\t", col.names = TRUE)
 
-# Generate IGV session files
+# IGV session for BAM
 write(paste0("Creating BAM IGV session file..."), stdout())
-project_bam_igv <- file.path(argv$output,
-                                paste0(project_name, '_BAM_igv_session.xml'))
-write ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bam_igv)
-write (paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
-project_bam_igv, append =T)
-write ("\t<Resources>", project_bam_igv, append=T)
-for (row in 1:nrow(bam_files))
-{
-  sample_name <- bam_files[row,"sample_name"]
-  sample_file <- bam_files[row,"val"]
-  sample_dir <- file.path(results_subdir, sample_name)
-  bam_file <- paste(sample_dir, sample_file, sep="/")
-  #change relative directory to X:
-  bam_file <- gsub("/work/project","X:",bam_file)
-  write (paste("<Resource path=\"",bam_file,"\"/>",sep=""), project_bam_igv, append=T)
+project_bam_igv <- file.path(argv$output, paste0(project_name, '_BAM_igv_session.xml'))
+write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bam_igv)
+write(paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
+      project_bam_igv, append=TRUE)
+write("\t<Resources>", project_bam_igv, append=TRUE)
+for (row in 1:nrow(bam_files)) {
+  sample_name <- bam_files[row, "sample_name"]
+  bam_file <- bam_files[row, "val"]
+  # Optional path rewrite:
+  bam_file <- gsub("/work/project", "X:", bam_file)
+  write(paste("<Resource path=\"", bam_file, "\"/>", sep=""), project_bam_igv, append=TRUE)
 }
-write ("\t</Resources>", project_bam_igv, append=T)
-write ("</Session>", project_bam_igv, append=T)
-
+write("\t</Resources>", project_bam_igv, append=TRUE)
+write("</Session>", project_bam_igv, append=TRUE)
 
 ########################
 # Generate BigWig igv_session file
 write(paste0("Creating BigWig IGV session file..."), stdout())
-bw_files <- getResultFiles (project_samples, results_subdir, "BigWig")
-project_bw_igv <- file.path(argv$output,
-                                paste0(project_name, '_BigWig_igv_session.xml'))
-write ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bw_igv)
-write (paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
-project_bw_igv, append =T)
-write ("\t<Resources>", project_bw_igv, append=T)
-for (row in 1:nrow(bw_files))
-{
-  sample_name <- bw_files[row,"sample_name"]
-  sample_file <- bw_files[row,"val"]
-  sample_dir <- file.path(results_subdir, sample_name)
-  bw_file <- paste(sample_dir, sample_file, sep="/")
-  #change relative directory to X:
-  bw_file <- gsub("/work/project","X:",bw_file)
-  write (paste("<Resource path=\"",bw_file,"\"/>",sep=""), project_bw_igv, append=T)
+bw_files <- getResultFilesFromYaml(project_samples, results_subdir, "bigwig_dedup")
+project_bw_igv <- file.path(argv$output, paste0(project_name, '_BigWig_igv_session.xml'))
+write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bw_igv)
+write(paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
+      project_bw_igv, append=TRUE)
+write("\t<Resources>", project_bw_igv, append=TRUE)
+for (row in 1:nrow(bw_files)) {
+  bw_file <- bw_files[row, "val"]
+  bw_file <- gsub("/work/project", "X:", bw_file)   # same optional rewrite
+  write(paste("<Resource path=\"", bw_file, "\"/>", sep=""), project_bw_igv, append=TRUE)
 }
-write ("\t</Resources>", project_bw_igv, append=T)
-write ("</Session>", project_bw_igv, append=T)
+write("\t</Resources>", project_bw_igv, append=TRUE)
+write("</Session>", project_bw_igv, append=TRUE)
+
 
 #######################################
 # Generate FeatureCount classes summary
