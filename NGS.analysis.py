@@ -57,76 +57,18 @@ parser.add_argument("--repeats_SAF", dest="repeats_SAF", type=str,
 parser.add_argument("--repeats_SAFid", dest="repeats_SAFid", type=str,
                         default=None,
                         help="Repeats SAF file for featureCounts, individual Repeats")
-<<<<<<< HEAD
-=======
-#parser.add_argument("--pipestat-config", default=None,
-#                    help="Looper-generated pipestat configuration file")
->>>>>>> 3a307bbcc6160f062949f2849da728309a76c655
 
 args = parser.parse_args()
 args.paired_end = args.single_or_paired.lower() == "paired"
 
-<<<<<<< HEAD
-=======
-""" print(f"Provided pipestat_config path: {args.pipestat_config}")
-if args.pipestat_config:
-    with open(args.pipestat_config, 'r') as f:
-        config_data = yaml.safe_load(f)
-        print("Loaded pipestat config content:")
-        print(config_data)
-else:
-    print("No pipestat_config provided")
-
-
->>>>>>> 3a307bbcc6160f062949f2849da728309a76c655
 if not args.input:
     parser.print_help()
     raise SystemExit
- """
+
 # Initialize, creating global PipelineManager and NGSTk instance for
 # access in ancillary functions outside of main().
 outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
 
-<<<<<<< HEAD
-=======
-""" looper_results_path = None
-if getattr(args, "pipestat_config", None) and os.path.exists(args.pipestat_config):
-    with open(args.pipestat_config, "r") as fh:
-        _pcfg = yaml.safe_load(fh) or {}
-    looper_results_path = _pcfg.get("results_file_path")  # absolute path set in .looper.yaml
-
-# Always provide this attribute (required by pypiper 0.14.x),
-# but if Looper passed a config, set it to THE SAME PATH so there’s no duplicate file.
-pipestat_results_file = looper_results_path or os.path.join(outfolder, "pipestat_results.yaml")
-
-pipestat_kwargs = {
-    "pipestat_results_file": pipestat_results_file,
-    "pipestat_record_identifier": args.sample_name,   # or args.name for project collator
-    "pipestat_pipeline_type": "sample",               # "project" for collator
-}
-
-if getattr(args, "pipestat_config", None):
-    pipestat_kwargs["pipestat_config"] = args.pipestat_config
-else:
-    # Standalone fallback: provide a schema that ships with your pipeline
-    pipestat_kwargs["pipestat_schema"] = os.path.join(SCRIPT_DIR, "pipestat_results_schema.yaml") """
-
-
-""" if args.pipestat_config:
-    with open(args.pipestat_config, 'r') as f:
-        config_data = yaml.safe_load(f)
-    
-    # Resolve results_file_path template with sample_name (your record_identifier)
-    results_file_template = config_data.get('results_file_path', '')
-    pipestat_results_file = results_file_template.format(record_identifier=args.sample_name)
-    
-    # Extract schema_path from config
-    pipestat_schema = config_data.get('schema_path')
-else:
-    # Fallback if no config (though Looper should always provide it)
-    pipestat_results_file = None """
-
->>>>>>> 3a307bbcc6160f062949f2849da728309a76c655
 global pm
 pm = pypiper.PipelineManager(
     name="NGS.analysis",
@@ -135,16 +77,6 @@ pm = pypiper.PipelineManager(
     args=args,
     version=__version__
 )
-<<<<<<< HEAD
-=======
-"""     recover=args.recover,
-    pipestat_config=args.pipestat_config,
-    pipestat_results_file=pipestat_results_file,  # Now explicitly set
-    pipestat_schema=pipestat_schema,  # Ensures config's schema is used
-    
-    #    **pipestat_kwargs,
- ) """
->>>>>>> 3a307bbcc6160f062949f2849da728309a76c655
 
 global ngstk
 ngstk = pypiper.NGSTk(pm=pm)
