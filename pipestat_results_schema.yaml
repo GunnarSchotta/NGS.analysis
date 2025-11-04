@@ -30,7 +30,6 @@ properties:
         Trim_loss_rate:
           type: number
           description: "trimmed loss rate"
-
         Input_reads:
           type: number
           description: "input_reads"
@@ -49,9 +48,6 @@ properties:
         Unmapped_reads:                  
           type: number
           description: "unmapped_reads"
-        Unmapped_reads_too_many_mismatches: 
-          type: number
-          description: "unmapped_reads due to too many mismatches"
         Mapping_rate:
           type: number
           description: "mapping_rate"
@@ -120,7 +116,7 @@ properties:
             - path
             - title
 
-        fastqc_trim_r1_report:
+        FastQC report trim r1:
           title: "FastQC trim report r1"
           description: "FastQC trim report r1"
           type: object
@@ -133,7 +129,7 @@ properties:
           required:
             - path
             - title
-        fastqc_trim_r2_report:
+        FastQC report trim r2:
           title: "FastQC trim report r2"
           description: "FastQC trim report r2"
           type: object
@@ -147,24 +143,18 @@ properties:
             - path
             - title
 
-        mapped_bam:
+        BAM_mapped:
           type: string
           description: "mapped bam file"
-        dedup_unique_bam:
+        BAM_dedup_unique:
           type: string
           description: "deduplicated unique mapped bam file"
-        bigwig:
+        BigWig:
           type: string
-          description: "bigwig file"
-        bigwig_dedup:
+          description: "BigWig file"
+        BigWig_dedup:
           type: string
-          description: "deduplicated bigwig file"
-        nuc_bigwig:
-          type: string
-          description: "nucleosome bigwig file"
-        subnuc_bigwig:
-          type: string
-          description: "subnucleosome bigwig file"
+          description: "deduplicated BigWig file"
 
         TSS_enrichment:
           title: "TSS enrichment file"
@@ -199,17 +189,6 @@ properties:
             - path
             - thumbnail_path
             - title
-
-        iap_norm_coverage:
-          type: string
-          description: "IAP normalized coverage file"
-
-        feature_counts_by_class:
-          type: string
-          description: "feature_counts_by_class"
-        feature_counts_by_element: 
-          type: string
-          description: "feature_counts_by_element"
         Time:
           type: string
           description: "time"

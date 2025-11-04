@@ -1,16 +1,15 @@
 pipeline_name: NGS.analysis
-output_schema: /store24/project24/becgsc_001/dev/NGS.analysis.v2/NGS.analysis/NGS.analysis_output_schema.yaml
+output_schema: pipestat_results_schema.yaml
 
 project_interface:
   command_template: >
-    python /store24/project24/becgsc_001/dev/NGS.analysis.v2/NGS.analysis/NGS.analysis.collator.py
+    python /store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/NGS.analysis.collator.py
     --config {looper.pep_config}
     -O {looper.output_dir}
     -P {compute.cores}
     -M {compute.mem}
     -n {project.name}
     -r {looper.output_dir}
-    --pipestat-config {pipestat.config_file}
 
 # Submission resources for the project job (SLURM)
 compute:

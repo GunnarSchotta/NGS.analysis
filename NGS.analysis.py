@@ -3,9 +3,9 @@
 NGS analysis
 """
 
-__author__ = ["Gunnar Schotta"]
+__auhor__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "2.0.0"
+__version__ = "1.1.2"
 
 
 from argparse import ArgumentParser
@@ -27,7 +27,7 @@ Main pipeline process.
 parser = ArgumentParser(description='NGS analysis version ' + __version__)
 parser = pypiper.add_pypiper_args(
      parser,
-     groups=['pypiper','looper','ngs','config'],  # removed 'resources' (not defined in your build)
+     groups=['pypiper','looper','ngs','config'],  
      required=["input","genome","sample-name","output-parent"]
  )
 parser.add_argument("--protocol", dest="protocol", type=str,
@@ -57,21 +57,9 @@ parser.add_argument("--repeats_SAF", dest="repeats_SAF", type=str,
 parser.add_argument("--repeats_SAFid", dest="repeats_SAFid", type=str,
                         default=None,
                         help="Repeats SAF file for featureCounts, individual Repeats")
-parser.add_argument("--pipestat-config", default=None,
-                    help="Looper-generated pipestat configuration file")
 
 args = parser.parse_args()
 args.paired_end = args.single_or_paired.lower() == "paired"
-
-print(f"Provided pipestat_config path: {args.pipestat_config}")
-if args.pipestat_config:
-    with open(args.pipestat_config, 'r') as f:
-        config_data = yaml.safe_load(f)
-        print("Loaded pipestat config content:")
-        print(config_data)
-else:
-    print("No pipestat_config provided")
-
 
 if not args.input:
     parser.print_help()
@@ -81,53 +69,14 @@ if not args.input:
 # access in ancillary functions outside of main().
 outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
 
-""" looper_results_path = None
-if getattr(args, "pipestat_config", None) and os.path.exists(args.pipestat_config):
-    with open(args.pipestat_config, "r") as fh:
-        _pcfg = yaml.safe_load(fh) or {}
-    looper_results_path = _pcfg.get("results_file_path")  # absolute path set in .looper.yaml
-
-# Always provide this attribute (required by pypiper 0.14.x),
-# but if Looper passed a config, set it to THE SAME PATH so there’s no duplicate file.
-pipestat_results_file = looper_results_path or os.path.join(outfolder, "pipestat_results.yaml")
-
-pipestat_kwargs = {
-    "pipestat_results_file": pipestat_results_file,
-    "pipestat_record_identifier": args.sample_name,   # or args.name for project collator
-    "pipestat_pipeline_type": "sample",               # "project" for collator
-}
-
-if getattr(args, "pipestat_config", None):
-    pipestat_kwargs["pipestat_config"] = args.pipestat_config
-else:
-    # Standalone fallback: provide a schema that ships with your pipeline
-    pipestat_kwargs["pipestat_schema"] = os.path.join(SCRIPT_DIR, "pipestat_results_schema.yaml") """
-if args.pipestat_config:
-    with open(args.pipestat_config, 'r') as f:
-        config_data = yaml.safe_load(f)
-    
-    # Resolve results_file_path template with sample_name (your record_identifier)
-    results_file_template = config_data.get('results_file_path', '')
-    pipestat_results_file = results_file_template.format(record_identifier=args.sample_name)
-    
-    # Extract schema_path from config
-    pipestat_schema = config_data.get('schema_path')
-else:
-    # Fallback if no config (though Looper should always provide it)
-    pipestat_results_file = None
-
 global pm
 pm = pypiper.PipelineManager(
     name="NGS.analysis",
     outfolder=outfolder,
+    pipestat_record_identifier=args.sample_name,
     args=args,
-    recover=args.recover,
-    pipestat_config=args.pipestat_config,
-    pipestat_results_file=pipestat_results_file,  # Now explicitly set
-    pipestat_schema=pipestat_schema,  # Ensures config's schema is used
-    pipestat_record_identifier=args.sample_name
-    #    **pipestat_kwargs,
- )
+    version=__version__
+)
 
 global ngstk
 ngstk = pypiper.NGSTk(pm=pm)
@@ -181,11 +130,13 @@ container = None  # legacy
 ############################################################################
 #                      Grab and prepare input files                        #
 ############################################################################
-pm.pipestat.report(values={
-     "File_mb": round(ngstk.get_file_size([x for x in [args.input, args.input2] if x is not None]), 2),
-     "Read_type": args.single_or_paired,
-     "Genome": args.genome_assembly
- })
+pm.report_result(
+    "File_mb",
+    round(ngstk.get_file_size(
+          [x for x in [args.input, args.input2] if x is not None])), 2)
+pm.report_result("Read_type", args.single_or_paired)
+pm.report_result("Genome", args.genome_assembly)
+
 ############################################################################
 # 				Analysis pipeline 			   #
 ############################################################################
@@ -314,12 +265,12 @@ def check_trim():
     cmd = (tools.fastqc + " --noextract --outdir " +
            fastqc_folder + " " + trimmed_fastq)
     pm.run(cmd, fastqc_report, nofail=False)
-    pm.report_object("fastqc_trim_r1_report", fastqc_report)
+    pm.report_object("FastQC report trim r1", fastqc_report)
     if args.paired_end and trimmed_fastq_R2:
         cmd = (tools.fastqc + " --noextract --outdir " +
                fastqc_folder + " " + trimmed_fastq_R2)
         pm.run(cmd, fastqc_report_R2, nofail=False)
-        pm.report_object("fastqc_trim_r2_report", fastqc_report_R2)
+        pm.report_object("FastQC report trim r2", fastqc_report_R2)
 
 pm.run(trim_cmd, trimmed_fastq, follow=check_trim)
 
@@ -487,7 +438,7 @@ else: #pipeline_mode: genes
         pm.run([cmd, cmd2], mapping_genome_bam, follow=check_alignment)
 
 #report BAM file
-pm.pipestat.report(values={"mapped_bam": mapping_genome_bam})
+pm.report_object("BAM_mapped", mapping_genome_bam)
 
 #check insert size distribution
 if args.paired_end and (not args.protocol == "RNA"):
@@ -501,7 +452,7 @@ if args.paired_end and (not args.protocol == "RNA"):
     fraglen_script = os.path.join(os.path.dirname(__file__), "frag_distribution.R")
     cmd = "Rscript " + fraglen_script + " " + args.sample_name + " " + is_file + " " + QC_folder
     pm.run(cmd, is_pdf)
-    pm.report_object("Insert_size_distribution", is_pdf, anchor_image=is_png)
+    pm.report_object("Insert size distribution", is_pdf, anchor_image=is_png)
     #clean file
     pm.clean_add(is_file)
 
@@ -570,7 +521,7 @@ if not (args.protocol == "RNA" and args.pipeline_mode == "genes"):
     pm.report_result("Mapping_rate_filtered", round((ur)*100/trimmed,2))
 
     #Report deduplicated BAM file
-    pm.pipestat.report(values={"dedup_unique_bam": mapping_genome_bam_dedup_unique})
+    pm.report_object("BAM_dedup_unique", mapping_genome_bam_dedup_unique)
 
 #Generate BigWig files using Deeptools for RNA-seq use mapping_genome_bam file
 if (args.protocol == "RNA" and args.pipeline_mode == "genes"):
@@ -578,13 +529,13 @@ if (args.protocol == "RNA" and args.pipeline_mode == "genes"):
     cmd += " -o " + mapping_genome_bam_bw + " --binSize 10 --normalizeUsing RPKM"
     pm.run(cmd, mapping_genome_bam_bw)
     #Report BigWig file
-    pm.pipestat.report(values={"bigwig": mapping_genome_bam_bw})
+    pm.report_object("BigWig", mapping_genome_bam_bw)
 else:
     cmd = tools.bamcoverage + " --bam " + mapping_genome_bam_dedup_unique
     cmd += " -o " + mapping_genome_bam_dedup_unique_bw + " --binSize 10 --normalizeUsing RPKM"
     pm.run(cmd, mapping_genome_bam_dedup_unique_bw)
     #Report deduplicated BigWig file
-    pm.pipestat.report(values={"bigwig_dedup": mapping_genome_bam_dedup_unique_bw})
+    pm.report_object("BigWig_dedup", mapping_genome_bam_dedup_unique_bw)
 
 #Clean Temporary Files
 pm.clean_add(mapping_genome_bam_dedup)
@@ -677,7 +628,8 @@ if args.protocol == "ATAC":
         cmd = (tools.Rscript + " " + tool_path("plot.TSS.enrichment.R") +
                 " -i " + Tss_enrich)
         pm.run(cmd, Tss_pdf, nofail=True)
-        pm.report_object("TSS_enrichment", Tss_pdf, anchor_image=Tss_png)
+
+        pm.report_object("TSS enrichment", Tss_pdf, anchor_image=Tss_png)
 
 #STOP pipeline if genes mode,otherwise continue with repeats coverage
 if args.pipeline_mode == "genes":

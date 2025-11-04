@@ -146,62 +146,62 @@ if (dir.exists(argv$results)) {
     quit()
 }
 
-########################
-# Generate stats summary (now from YAML)
+# ########################
+# # Generate stats summary (now from YAML)
 stats <- createStatsSummary(project_samples, results_subdir)
 if (is.null(stats) || nrow(stats) == 0) quit()
 project_stats_file <- file.path(summary_dir, paste0(project_name, '_stats_summary.tsv'))
 fwrite(stats, project_stats_file, sep = "\t", col.names = TRUE)
 
 
-########################
-# Generate BAM files summary and igv_session files
-write(paste0("Creating BAM files summary..."), stdout())
-bam_files <- getResultFilesFromYaml(project_samples, results_subdir, "mapped_bam")
-bam_files_tsv <- copy(bam_files)
-# For compatibility with your previous TSV (project-level absolute path column)
-# If you still want to prepend argv$results, keep it; otherwise paths are already absolute in YAML.
-bam_files_tsv$val <- ifelse(startsWith(bam_files_tsv$val, "/"),
-                            bam_files_tsv$val,
-                            file.path(argv$results, bam_files_tsv$val))
+# ########################
+# # Generate BAM files summary and igv_session files
+# write(paste0("Creating BAM files summary..."), stdout())
+# bam_files <- getResultFilesFromYaml(project_samples, results_subdir, "mapped_bam")
+# bam_files_tsv <- copy(bam_files)
+# # For compatibility with your previous TSV (project-level absolute path column)
+# # If you still want to prepend argv$results, keep it; otherwise paths are already absolute in YAML.
+# bam_files_tsv$val <- ifelse(startsWith(bam_files_tsv$val, "/"),
+#                             bam_files_tsv$val,
+#                             file.path(argv$results, bam_files_tsv$val))
 
-project_bam_files <- file.path(argv$output, paste0(project_name, '_BAM_files.tsv'))
-message(sprintf("Summary (n=%s): %s", length(unique(stats$sample_name)), project_bam_files))
-fwrite(bam_files_tsv, project_bam_files, sep = "\t", col.names = TRUE)
+# project_bam_files <- file.path(argv$output, paste0(project_name, '_BAM_files.tsv'))
+# message(sprintf("Summary (n=%s): %s", length(unique(stats$sample_name)), project_bam_files))
+# fwrite(bam_files_tsv, project_bam_files, sep = "\t", col.names = TRUE)
 
-# IGV session for BAM
-write(paste0("Creating BAM IGV session file..."), stdout())
-project_bam_igv <- file.path(argv$output, paste0(project_name, '_BAM_igv_session.xml'))
-write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bam_igv)
-write(paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
-      project_bam_igv, append=TRUE)
-write("\t<Resources>", project_bam_igv, append=TRUE)
-for (row in 1:nrow(bam_files)) {
-  sample_name <- bam_files[row, "sample_name"]
-  bam_file <- bam_files[row, "val"]
-  # Optional path rewrite:
-  bam_file <- gsub("/work/project", "X:", bam_file)
-  write(paste("<Resource path=\"", bam_file, "\"/>", sep=""), project_bam_igv, append=TRUE)
-}
-write("\t</Resources>", project_bam_igv, append=TRUE)
-write("</Session>", project_bam_igv, append=TRUE)
+# # IGV session for BAM
+# write(paste0("Creating BAM IGV session file..."), stdout())
+# project_bam_igv <- file.path(argv$output, paste0(project_name, '_BAM_igv_session.xml'))
+# write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bam_igv)
+# write(paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
+#       project_bam_igv, append=TRUE)
+# write("\t<Resources>", project_bam_igv, append=TRUE)
+# for (row in 1:nrow(bam_files)) {
+#   sample_name <- bam_files[row, "sample_name"]
+#   bam_file <- bam_files[row, "val"]
+#   # Optional path rewrite:
+#   bam_file <- gsub("/work/project", "X:", bam_file)
+#   write(paste("<Resource path=\"", bam_file, "\"/>", sep=""), project_bam_igv, append=TRUE)
+# }
+# write("\t</Resources>", project_bam_igv, append=TRUE)
+# write("</Session>", project_bam_igv, append=TRUE)
 
-########################
-# Generate BigWig igv_session file
-write(paste0("Creating BigWig IGV session file..."), stdout())
-bw_files <- getResultFilesFromYaml(project_samples, results_subdir, "bigwig_dedup")
-project_bw_igv <- file.path(argv$output, paste0(project_name, '_BigWig_igv_session.xml'))
-write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bw_igv)
-write(paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
-      project_bw_igv, append=TRUE)
-write("\t<Resources>", project_bw_igv, append=TRUE)
-for (row in 1:nrow(bw_files)) {
-  bw_file <- bw_files[row, "val"]
-  bw_file <- gsub("/work/project", "X:", bw_file)   # same optional rewrite
-  write(paste("<Resource path=\"", bw_file, "\"/>", sep=""), project_bw_igv, append=TRUE)
-}
-write("\t</Resources>", project_bw_igv, append=TRUE)
-write("</Session>", project_bw_igv, append=TRUE)
+# ########################
+# # Generate BigWig igv_session file
+# write(paste0("Creating BigWig IGV session file..."), stdout())
+# bw_files <- getResultFilesFromYaml(project_samples, results_subdir, "bigwig_dedup")
+# project_bw_igv <- file.path(argv$output, paste0(project_name, '_BigWig_igv_session.xml'))
+# write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", project_bw_igv)
+# write(paste("<Session genome=\"",genome,"\" hasGeneTrack=\"true\" hasSequenceTrack=\"true\" locus=\"All\" version=\"8\">", sep=""),
+#       project_bw_igv, append=TRUE)
+# write("\t<Resources>", project_bw_igv, append=TRUE)
+# for (row in 1:nrow(bw_files)) {
+#   bw_file <- bw_files[row, "val"]
+#   bw_file <- gsub("/work/project", "X:", bw_file)   # same optional rewrite
+#   write(paste("<Resource path=\"", bw_file, "\"/>", sep=""), project_bw_igv, append=TRUE)
+# }
+# write("\t</Resources>", project_bw_igv, append=TRUE)
+# write("</Session>", project_bw_igv, append=TRUE)
 
 
 #######################################

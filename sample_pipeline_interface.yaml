@@ -3,7 +3,7 @@ output_schema: pipestat_results_schema.yaml
 
 sample_interface:
   command_template: >
-    python /store24/project24/becgsc_001/dev/NGS.analysis.v2/NGS.analysis/NGS.analysis.py
+    python /store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/NGS.analysis.py
     --output-parent {looper.output_dir}
     --cores {compute.cores}
     --mem {compute.mem}
@@ -21,7 +21,6 @@ sample_interface:
     --genome_index {sample.genome_index}
     --repeats_SAF {sample.repeats_SAF}
     --repeats_SAFid {sample.repeats_SAFid}
-    --pipestat-config {pipestat.config_file}
   
 compute:
   partition: slim16

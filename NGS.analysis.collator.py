@@ -29,7 +29,7 @@ def parse_arguments():
     parser = pypiper.add_pypiper_args(parser, groups=["pypiper", "looper", "config"])
     parser.add_argument("-n", "--name", help="Project name (record identifier).", type=str, required=False)
     parser.add_argument("-r", "--results", help="Output results subdirectory path.", type=str, required=False)
-    parser.add_argument("--pipestat-config", default=None, help="Looper-generated pipestat config (YAML).")
+    #parser.add_argument("--pipestat-config", default=None, help="Looper-generated pipestat config (YAML).")
     
     args = parser.parse_args()
     return args
@@ -45,10 +45,10 @@ def main():
     pm = pypiper.PipelineManager(
         name="NGS.analysis",
         outfolder=outfolder,
+        pipestat_record_identifier="summary",
+        pipestat_pipeline_type="project",
         args=args,              # ensure pypiper sees --config and other CLI args
-        version=__version__,
-        pipestat_record_identifier="summary"
-        #pipestat_pipeline_type="project"
+        version=__version__
     )
 
     # ---- Run the R summarizer as before ----
