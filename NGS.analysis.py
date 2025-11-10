@@ -229,7 +229,7 @@ if ngstk.check_command(tools.fastqc):
 pm.info("trimmomatic local_input_files: {}".format(local_input_files))
 
 trim_cmd_chunks = [
-    "{trim} {PE} -compressStream -threads {cores}".format(
+    "{trim} {PE} -threads {cores}".format(
         trim=tools.trimmomatic,
         PE="PE" if args.paired_end else "SE",
         cores=pm.cores),
