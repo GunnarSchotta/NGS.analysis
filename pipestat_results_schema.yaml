@@ -1,197 +1,232 @@
-title: NGS.analysis pipestat schema
-description: Results reported by the NGS.analysis pipeline.
-type: object
-properties:
-  pipeline_name: "NGS.analysis"
-  samples:
-    type: array
-    items:
-      type: object
-      properties:
-        # ---------- primitives ----------
-        File_mb:
-          type: number
-          description: "size of file"
-        Read_type:
-          type: string
-          description: "read_type"
-        Genome:
-          type: string
-          description: "e.g. mm10 or hg38"
-        Raw_reads:
-          type: string
-          description: "raw reads"
-        Fastq_reads:
-          type: number
-          description: "fastq_reads"
-        Trimmed_reads:
-          type: number
-          description: "trimmed_reads"
-        Trim_loss_rate:
-          type: number
-          description: "trimmed loss rate"
-        Input_reads:
-          type: number
-          description: "input_reads"
-        Unique_reads:
-          type: number
-          description: "unique_reads"
-        Multimapped_reads:
-          type: number
-          description: "multimapped_reads"
-        Multimapped_too_many_loci_reads:  
-          type: number
-          description: "mapped_reads to too many loci"
-        Mapped_reads:
-          type: number
-          description: "mapped_reads"
-        Unmapped_reads:                  
-          type: number
-          description: "unmapped_reads"
-        Mapping_rate:
-          type: number
-          description: "mapping_rate"
-        Unique_Mapping_rate:
-          type: number
-          description: "unique mapping rate"
-        Multi_Mapping_rate:
-          type: number
-          description: "multi mapping rate"
+pipeline_name: "NGS.analysis"
 
-        Mitochondrial_reads: 
-          type: number
-          description: "number of mitochondrial reads"  
-        Mitochondrial_reads_percentage:
-          type: number
-          description: "percentage of mitochondrial reads"
-
-        Read_pair_duplicates:
-          type: number
-          description: "number of read pair duplicates"
-        Read_pair_optical_duplicates: 
-          type: number
-          description: "number of read pair optical duplicates"
-        Read_duplicates:
-          type: number
-          description: "number of read duplicates"
-        Percent_duplication:
-          type: number
-          description: "percent duplication"
-        Mapped_reads_filtered:            
-          type: number
-          description: "number of mapped reads after filtering"
-        Mapping_rate_filtered:
-          type: number
-          description: "mapping rate after filtering"
-
-        TSS_score:
-          type: number
-          description: "TSS enrichment score"
-
-        # ---------- files ----------
-        FastQC report r1:
-          title: "FastQC report r1"
-          description: "FastQC report r1"
-          type: object
-          object_type: file
-          properties:
-            path:
-              type: string
-            title:
-              type: string
-          required:
-            - path
-            - title
-        FastQC report r2:
-          title: "FastQC report r2"
-          description: "FastQC report r2"
-          type: object
-          object_type: file
-          properties:
-            path:
-              type: string
-            title:
-              type: string
-          required:
-            - path
-            - title
-
-        FastQC report trim r1:
-          title: "FastQC trim report r1"
-          description: "FastQC trim report r1"
-          type: object
-          object_type: file
-          properties:
-            path:
-              type: string
-            title:
-              type: string
-          required:
-            - path
-            - title
-        FastQC report trim r2:
-          title: "FastQC trim report r2"
-          description: "FastQC trim report r2"
-          type: object
-          object_type: file
-          properties:
-            path:
-              type: string
-            title:
-              type: string
-          required:
-            - path
-            - title
-
-        BAM_mapped:
-          type: string
-          description: "mapped bam file"
-        BAM_dedup_unique:
-          type: string
-          description: "deduplicated unique mapped bam file"
-        BigWig:
-          type: string
-          description: "BigWig file"
-        BigWig_dedup:
-          type: string
-          description: "deduplicated BigWig file"
-
-        TSS_enrichment:
-          title: "TSS enrichment file"
-          description: "Plots TSS scores for each sample."
-          type: object
-          object_type: image
-          properties:
-            path:
-              type: string
-            thumbnail_path:
-              type: string
-            title:
-              type: string
-          required:
-            - path
-            - thumbnail_path
-            - title
-
-        Insert_size_distribution:
-          title: "Insert size distribution file"
-          description: "Insert size distribution file."
-          type: object
-          object_type: image
-          properties:
-            path:
-              type: string
-            thumbnail_path:
-              type: string
-            title:
-              type: string
-          required:
-            - path
-            - thumbnail_path
-            - title
-        Time:
-          type: string
-          description: "time"
-        Success:
-          type: string
-          description: "success"
+samples:
+  File_mb:
+    type: number
+    description: "size of file"
+  Read_type:
+    type: string
+    description: "read_type"
+  Genome:
+    type: string
+    description: "e.g. mm10 or hg38"
+  Raw_reads:
+    type: string
+    description: "raw reads"
+  Fastq_reads:
+    type: number
+    description: "fastq_reads"
+  Trimmed_reads:
+    type: number
+    description: "trimmed_reads"
+  Trim_loss_rate:
+    type: number
+    description: "trimmed loss rate"
+  Input_reads:
+    type: number
+    description: "input_reads"
+  Unique_reads:
+    type: number
+    description: "unique_reads"
+  Multimapped_reads:
+    type: number
+    description: "multimapped_reads"
+  Multimapped_too_many_loci_reads:
+    type: number
+    description: "mapped_reads to too many loci"
+  Mapped_reads:
+    type: number
+    description: "mapped_reads"
+  Unmapped_reads:
+    type: number
+    description: "unmapped_reads"
+  Mapping_rate:
+    type: number
+    description: "mapping_rate"
+  Unique_Mapping_rate:
+    type: number
+    description: "unique mapping rate"
+  Multi_Mapping_rate:
+    type: number
+    description: "multi mapping rate"
+  Mitochondrial_reads:
+    type: number
+    description: "number of mitochondrial reads"
+  Mitochondrial_reads_percentage:
+    type: number
+    description: "percentage of mitochondrial reads"
+  Read_pair_duplicates:
+    type: number
+    description: "number of read pair duplicates"
+  Read_pair_optical_duplicates:
+    type: number
+    description: "number of read pair optical duplicates"
+  Read_duplicates:
+    type: number
+    description: "number of read duplicates"
+  Percent_duplication:
+    type: number
+    description: "percent duplication"
+  Mapped_reads_filtered:
+    type: number
+    description: "number of mapped reads after filtering"
+  Mapping_rate_filtered:
+    type: number
+    description: "mapping rate after filtering"
+  TSS_score:
+    type: number
+    description: "TSS enrichment score"
+  FastQC report r1:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "FastQC report r1"
+  FastQC report r2:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "FastQC report r2"
+  FastQC report trim r1:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "FastQC trim report r1"
+  FastQC report trim r2:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "FastQC trim report r2"
+  BAM_mapped:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Mapped BAM file"
+  BAM_dedup_unique:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Deduplicated unique mapped BAM file"
+  BigWig:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "BigWig file"
+  BigWig_dedup:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Deduplicated BigWig file"
+  TSS enrichment:
+    type: object
+    object_type: image
+    properties:
+      path:
+        type: string
+        description: "Path to the image."
+      thumbnail_path:
+        type: string
+        description: "Path to the thumbnail."
+      title:
+        type: string
+        description: "Title of the image."
+    required:
+      - path
+      - thumbnail_path
+      - title
+    description: "Plots TSS scores for each sample."
+  Insert size distribution:
+    type: object
+    object_type: image
+    properties:
+      path:
+        type: string
+        description: "Path to the image."
+      thumbnail_path:
+        type: string
+        description: "Path to the thumbnail."
+      title:
+        type: string
+        description: "Title of the image."
+    required:
+      - path
+      - thumbnail_path
+      - title
+    description: "Insert size distribution file."
+  Time:
+    type: string
+    description: "time"
+  Success:
+    type: string
+    description: "success"

@@ -1,0 +1,129 @@
+pipeline_name: "NGS.analysis"
+
+projects:
+  stat_summary_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Project statistics summary file."
+  feature_counts_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "FeatureCounts class summary for all samples."
+  feature_counts_id_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "FeatureCounts element summary for all samples."
+  IAP_coverage_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "IAP coverage summary for all samples."
+  unstranded_gene_counts_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Unstranded gene count summary for RNA samples."
+  sense_gene_counts_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Sense-strand gene count summary for RNA samples."
+  IAP_coverage_samples:
+    type: object
+    object_type: image
+    properties:
+      path:
+        type: string
+        description: "Path to the image."
+      thumbnail_path:
+        type: string
+        description: "Path to the thumbnail."
+      title:
+        type: string
+        description: "Title of the image."
+    required:
+      - path
+      - thumbnail_path
+      - title
+    description: "Per-sample IAP coverage plot."
+  IAP_coverage_merged:
+    type: object
+    object_type: image
+    properties:
+      path:
+        type: string
+        description: "Path to the image."
+      thumbnail_path:
+        type: string
+        description: "Path to the thumbnail."
+      title:
+        type: string
+        description: "Title of the image."
+    required:
+      - path
+      - thumbnail_path
+      - title
+    description: "Merged IAP coverage plot."
+  Time:
+    type: string
+    description: "time"
+  Success:
+    type: string
+    description: "success"

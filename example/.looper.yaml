@@ -1,0 +1,8 @@
+pep_config: analysis.configuration.yaml
+output_dir: results
+pipeline_interfaces:
+   - /store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/sample_pipeline_interface.yaml
+   - /store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/project_pipeline_interface.yaml
+pipestat:
+  results_file_path: "{record_identifier}/stats.yaml"
+  flag_file_dir: results/flags

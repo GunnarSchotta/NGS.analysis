@@ -57,6 +57,9 @@ parser.add_argument("--repeats_SAF", dest="repeats_SAF", type=str,
 parser.add_argument("--repeats_SAFid", dest="repeats_SAFid", type=str,
                         default=None,
                         help="Repeats SAF file for featureCounts, individual Repeats")
+parser.add_argument("--pipestat-config", dest="pipestat_config", type=str,
+                        default=None,
+                        help="Looper-generated pipestat config file path.")
 
 args = parser.parse_args()
 args.paired_end = args.single_or_paired.lower() == "paired"
@@ -65,15 +68,82 @@ if not args.input:
     parser.print_help()
     raise SystemExit
 
+def _build_protocol_schema(base_schema, protocol, paired_end):
+    """Return a copy of base_schema filtered to fields relevant for this protocol/read-type.
+
+    Fields absent from the active protocol are excluded so pipestat does not
+    render empty columns in the HTML summary report.
+    """
+    sample_key = "samples" if "samples" in base_schema else "sample"
+    samples = base_schema.get(sample_key, {})
+    keep = {
+        # universally reported for every protocol and read type
+        "File_mb", "Read_type", "Genome", "Raw_reads", "Fastq_reads",
+        "Trimmed_reads", "Trim_loss_rate",
+        "Mapped_reads", "Mapping_rate",
+        "Mitochondrial_reads", "Mitochondrial_reads_percentage",
+        "Percent_duplication", "Mapped_reads_filtered", "Mapping_rate_filtered",
+        "FastQC report r1", "FastQC report trim r1",
+        "BAM_mapped", "BAM_dedup_unique",
+        "Time", "Success",
+    }
+    if protocol == "RNA":
+        keep |= {"Input_reads", "Unique_reads", "Multimapped_reads",
+                 "Multimapped_too_many_loci_reads", "Unmapped_reads",
+                 "Unique_Mapping_rate", "Multi_Mapping_rate", "BigWig"}
+    else:
+        keep.add("BigWig_dedup")
+        if protocol == "ATAC":
+            keep |= {"TSS_score", "TSS enrichment"}
+    if paired_end:
+        keep |= {"FastQC report r2", "FastQC report trim r2",
+                 "Read_pair_duplicates", "Read_pair_optical_duplicates"}
+        if protocol != "RNA":
+            keep.add("Insert size distribution")
+    else:
+        keep.add("Read_duplicates")
+    return {
+        "pipeline_name": base_schema.get("pipeline_name", "NGS.analysis"),
+        sample_key: {k: v for k, v in samples.items() if k in keep},
+    }
+
+
 # Initialize, creating global PipelineManager and NGSTk instance for
 # access in ancillary functions outside of main().
 outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
+
+# Resolve {record_identifier} in the looper-generated pipestat config so that
+# each sample writes to its own results file (avoids concurrent-write races).
+# Also generate a protocol-specific schema to suppress empty columns in reports.
+# Always write a resolved per-sample config inside outfolder.
+if args.pipestat_config and os.path.exists(args.pipestat_config):
+    with open(args.pipestat_config) as _f:
+        _cfg = yaml.safe_load(_f) or {}
+    _rfp = _cfg.get("results_file_path", "")
+    if _rfp and "{record_identifier}" in str(_rfp):
+        _cfg["results_file_path"] = str(_rfp).replace("{record_identifier}", args.sample_name)
+    _schema_path = _cfg.get("schema_path", "")
+    if _schema_path and os.path.exists(_schema_path):
+        with open(_schema_path) as _sf:
+            _base_schema = yaml.safe_load(_sf) or {}
+        _filtered = _build_protocol_schema(_base_schema, args.protocol, args.paired_end)
+        os.makedirs(outfolder, exist_ok=True)
+        _proto_schema = os.path.join(outfolder, "pipestat_schema.yaml")
+        with open(_proto_schema, "w") as _sf:
+            yaml.dump(_filtered, _sf, allow_unicode=True)
+        _cfg["schema_path"] = _proto_schema
+    os.makedirs(outfolder, exist_ok=True)
+    _resolved = os.path.join(outfolder, "pipestat_config.yaml")
+    with open(_resolved, "w") as _f:
+        yaml.dump(_cfg, _f)
+    args.pipestat_config = _resolved
 
 global pm
 pm = pypiper.PipelineManager(
     name="NGS.analysis",
     outfolder=outfolder,
     pipestat_record_identifier=args.sample_name,
+    pipestat_config_file=args.pipestat_config,
     args=args,
     version=__version__
 )

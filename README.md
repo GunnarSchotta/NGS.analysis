@@ -18,8 +18,17 @@ The pipeline can be started with:
 After completion, the summary can be calculated with:
  ```looper runp -p slurm project.yaml```
 
-Finally the reporting summary is generated with:
- ```looper report project.yaml```
+Finally, generate the custom report from the looper project directory
+(the directory that contains `.looper.yaml`):
+ ```../generate_report.py```
+
+This writes the main page to:
+ ```<results_dir>/report.html```
+
+The script reads `output_dir` from `.looper.yaml`, aggregates directly from the
+per-record `stats.yaml` files in the sample and project subdirectories, and
+only shows values and objects that were actually reported for the current
+pipeline variant.
 
 ## Installation
 

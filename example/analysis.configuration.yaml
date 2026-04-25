@@ -1,0 +1,39 @@
+#specify Project name
+name: Eugenio.RNA
+
+pep_version: 2.1.0
+#specify file name for sample table
+sample_table: sample.table.csv
+#specify the run mode of the pipeline [genes,repeats]
+pipeline_mode: genes
+
+sample_modifiers:
+  derive:
+    attributes: [read1, read2]
+    sources:
+      #specify data folder for the specific project files, all fastq files for one project should be placed in one data folder
+      R1: "/store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/example/{fastq1}"
+      R2: "/store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/example/{fastq2}"
+  imply:
+    - if:
+        organism: ["mouse", "mm10", "Mouse"]
+      then:
+        genome: mm10
+        STAR_RNA_index: /store24/project24/becgsc_001/genomes/mm10/STAR
+        STAR_genome_index: /store24/project24/becgsc_001/genomes/mm10/STARgenome
+        Bowtie2_index: /store24/project24/becgsc_001/genomes/mm10/Sequence/Bowtie2Index/genome
+        repeats_SAF: /store24/project24/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.mm10.160322.SAF #Repeat coordinates for FeatureCounts
+        repeats_SAFid: /store24/project24/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.ids.mm10.160322.SAF #Repeat coordinates for FeatureCounts
+        refgene_tss: /store24/project24/becgsc_001/genomes/mm10/Annotation/Genes/mm10_TSS.bed
+        genome_index: /store24/project24/becgsc_001/genomes/mm10/Sequence/WholeGenomeFasta/genome.fa.fai
+    - if:
+        organism: ["human", "hg38", "Human"]
+      then:
+        genome: hg38
+        STAR_RNA_index: /store24/project24/becgsc_001/genomes/hg38/STAR
+        STAR_genome_index: /store24/project24/becgsc_001/genomes/hg38/STARgenome
+        Bowtie2_index: /store24/project24/becgsc_001/genomes/hg38/Sequence/Bowtie2Index/genome
+        repeats_SAF: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.hg38.291122.SAF #Repeat coordinates for FeatureCounts
+        repeats_SAFid: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.ids.hg38.291122.SAF #Repeat coordinates for FeatureCounts
+        refgene_tss: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/hg38_TSS.bed
+        genome_index: /store24/project24/becgsc_001/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa.fai
