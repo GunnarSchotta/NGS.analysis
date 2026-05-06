@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+*.fa binary
+*.fastq.gz binary
+*.gz binary
+*.bam binary
+*.bai binary
+*.bw binary
+*.pdf binary
+*.png binary
+*.zip binary

@@ -14,6 +14,8 @@ import re
 import sys
 import tempfile
 import subprocess
+import logging
+from contextlib import contextmanager
 import yaml
 import pypiper
 from pypiper import build_command
@@ -108,6 +110,40 @@ def _build_protocol_schema(base_schema, protocol, paired_end):
     }
 
 
+@contextmanager
+def _skip_duplicate_pypiper_file_handler(log_path):
+    """Avoid piper 0.15.1 double-writing logger messages to its markdown log."""
+    original_file_handler = logging.FileHandler
+    target_log = os.path.abspath(log_path)
+
+    class _NoopPipelineLogHandler(logging.NullHandler):
+        baseFilename = target_log
+
+    class _PipelineLogFileHandler(original_file_handler):
+        def __new__(cls, filename, *args, **kwargs):
+            if os.path.abspath(filename) == target_log:
+                return _NoopPipelineLogHandler()
+            return super().__new__(cls)
+
+        def __init__(self, filename, *args, **kwargs):
+            if os.path.abspath(filename) == target_log:
+                return
+            super().__init__(filename, *args, **kwargs)
+
+    logging.FileHandler = _PipelineLogFileHandler
+    try:
+        yield
+    finally:
+        logging.FileHandler = original_file_handler
+        for handler in logging.getLogger().handlers:
+            if (
+                isinstance(handler, logging.NullHandler)
+                and getattr(handler, "baseFilename", None) == target_log
+            ):
+                logging.getLogger().removeHandler(handler)
+                handler.close()
+
+
 # Initialize, creating global PipelineManager and NGSTk instance for
 # access in ancillary functions outside of main().
 outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
@@ -119,9 +155,7 @@ outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
 if args.pipestat_config and os.path.exists(args.pipestat_config):
     with open(args.pipestat_config) as _f:
         _cfg = yaml.safe_load(_f) or {}
-    _rfp = _cfg.get("results_file_path", "")
-    if _rfp and "{record_identifier}" in str(_rfp):
-        _cfg["results_file_path"] = str(_rfp).replace("{record_identifier}", args.sample_name)
+    _cfg["results_file_path"] = os.path.join(outfolder, "stats.yaml")
     _schema_path = _cfg.get("schema_path", "")
     if _schema_path and os.path.exists(_schema_path):
         with open(_schema_path) as _sf:
@@ -139,14 +173,15 @@ if args.pipestat_config and os.path.exists(args.pipestat_config):
     args.pipestat_config = _resolved
 
 global pm
-pm = pypiper.PipelineManager(
-    name="NGS.analysis",
-    outfolder=outfolder,
-    pipestat_record_identifier=args.sample_name,
-    pipestat_config_file=args.pipestat_config,
-    args=args,
-    version=__version__
-)
+with _skip_duplicate_pypiper_file_handler(os.path.join(outfolder, "NGS.analysis_log.md")):
+    pm = pypiper.PipelineManager(
+        name="NGS.analysis",
+        outfolder=outfolder,
+        pipestat_record_identifier=args.sample_name,
+        pipestat_config_file=args.pipestat_config,
+        args=args,
+        version=__version__
+    )
 
 global ngstk
 ngstk = pypiper.NGSTk(pm=pm)

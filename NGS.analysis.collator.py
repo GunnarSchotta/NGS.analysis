@@ -10,6 +10,8 @@ __version__ = "2.0.0"
 from argparse import ArgumentParser
 import os
 import sys
+import logging
+from contextlib import contextmanager
 import yaml
 import pypiper
 from ubiquerg import VersionInHelpParser
@@ -19,6 +21,40 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 def tool_path(tool_name: str) -> str:
     """Return absolute path to a tool next to this script."""
     return os.path.join(SCRIPT_DIR, tool_name)
+
+
+@contextmanager
+def _skip_duplicate_pypiper_file_handler(log_path):
+    """Avoid piper 0.15.1 double-writing logger messages to its markdown log."""
+    original_file_handler = logging.FileHandler
+    target_log = os.path.abspath(log_path)
+
+    class _NoopPipelineLogHandler(logging.NullHandler):
+        baseFilename = target_log
+
+    class _PipelineLogFileHandler(original_file_handler):
+        def __new__(cls, filename, *args, **kwargs):
+            if os.path.abspath(filename) == target_log:
+                return _NoopPipelineLogHandler()
+            return super().__new__(cls)
+
+        def __init__(self, filename, *args, **kwargs):
+            if os.path.abspath(filename) == target_log:
+                return
+            super().__init__(filename, *args, **kwargs)
+
+    logging.FileHandler = _PipelineLogFileHandler
+    try:
+        yield
+    finally:
+        logging.FileHandler = original_file_handler
+        for handler in logging.getLogger().handlers:
+            if (
+                isinstance(handler, logging.NullHandler)
+                and getattr(handler, "baseFilename", None) == target_log
+            ):
+                logging.getLogger().removeHandler(handler)
+                handler.close()
 
 
 def _file_result(path: str, title: str) -> dict[str, str]:
@@ -123,24 +159,23 @@ def main():
     if args.pipestat_config and os.path.exists(args.pipestat_config):
         with open(args.pipestat_config) as _f:
             _cfg = yaml.safe_load(_f) or {}
-        _rfp = _cfg.get("results_file_path", "")
-        if _rfp and "{record_identifier}" in str(_rfp):
-            _cfg["results_file_path"] = str(_rfp).replace("{record_identifier}", project_record_id)
-            _resolved = os.path.join(outfolder, "pipestat_config.yaml")
-            with open(_resolved, "w") as _f:
-                yaml.dump(_cfg, _f)
-            args.pipestat_config = _resolved
+        _cfg["results_file_path"] = os.path.join(outfolder, "stats.yaml")
+        _resolved = os.path.join(outfolder, "pipestat_config.yaml")
+        with open(_resolved, "w") as _f:
+            yaml.dump(_cfg, _f)
+        args.pipestat_config = _resolved
 
     # IMPORTANT: use the unified pipeline name to match your interfaces/schemas
-    pm = pypiper.PipelineManager(
-        name="NGS.analysis",
-        outfolder=outfolder,
-        pipestat_record_identifier=project_record_id,
-        pipestat_pipeline_type="project",
-        pipestat_config_file=args.pipestat_config,
-        args=args,
-        version=__version__
-    )
+    with _skip_duplicate_pypiper_file_handler(os.path.join(outfolder, "NGS.analysis_log.md")):
+        pm = pypiper.PipelineManager(
+            name="NGS.analysis",
+            outfolder=outfolder,
+            pipestat_record_identifier=project_record_id,
+            pipestat_pipeline_type="project",
+            pipestat_config_file=args.pipestat_config,
+            args=args,
+            version=__version__
+        )
 
     # ---- Run the R summarizer as before ----
     # args.config_file is populated by pypiper (since we added 'config' group)
@@ -150,27 +185,6 @@ def main():
         f"{args.config_file} {outfolder} {args.results or args.output_parent}"
     )
     pm.run(r_cmd, "lock.max")
-
-    # ---- Create a top-level reports/index.html redirect ----
-    # pipestat places its HTML at reports/NGS.analysis/index.html; this redirect
-    # makes results/reports/index.html work as a direct entry point.
-    _reports_dir = os.path.join(args.output_parent, "reports")
-    os.makedirs(_reports_dir, exist_ok=True)
-    _redirect = os.path.join(_reports_dir, "index.html")
-    with open(_redirect, "w") as _rf:
-        _rf.write(
-            '<!DOCTYPE html>\n'
-            '<html>\n'
-            '<head>\n'
-            '<meta http-equiv="refresh" content="0; url=NGS.analysis/index.html">\n'
-            '<title>NGS.analysis Report</title>\n'
-            '</head>\n'
-            '<body>\n'
-            '<p>Redirecting to '
-            '<a href="NGS.analysis/index.html">NGS.analysis/index.html</a></p>\n'
-            '</body>\n'
-            '</html>\n'
-        )
 
     # Report project-level summary artifacts so the synthetic "summary" record
     # becomes a real record page in the HTML report.

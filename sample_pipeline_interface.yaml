@@ -4,7 +4,7 @@ output_schema: pipestat_results_schema.yaml
 sample_interface:
   command_template: >
     python /store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/NGS.analysis.py
-    --output-parent {looper.output_dir}
+    --output-parent {looper.output_dir}/samples
     --cores {compute.cores}
     --mem {compute.mem}
     --sample-name {sample.sample_name}

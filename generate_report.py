@@ -14,6 +14,7 @@ import html
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 
 try:
@@ -109,20 +110,21 @@ def load_looper_config(looper_config_path: Path) -> dict:
 def resolve_results_dir(looper_dir: Path, args: argparse.Namespace) -> Path:
     if args.results_dir:
         return (looper_dir / args.results_dir).resolve() if not Path(args.results_dir).is_absolute() else Path(args.results_dir).resolve()
-    config = load_looper_config(looper_dir / ".looper.yaml" if args.looper_config is None else Path(args.looper_config))
+    config_path = looper_dir / ".looper.yaml" if args.looper_config is None else Path(args.looper_config).resolve()
+    config = load_looper_config(config_path)
     output_dir = config.get("output_dir")
     if not output_dir:
         raise SystemExit("Could not determine output_dir from .looper.yaml")
     output_path = Path(output_dir)
     if output_path.is_absolute():
         return output_path.resolve()
-    return (looper_dir / output_path).resolve()
+    return (config_path.parent / output_path).resolve()
 
 
 def infer_pipeline_name(results_dir: Path, override: str | None) -> str:
     if override:
         return override
-    for stats_path in sorted(results_dir.glob("*/stats.yaml")):
+    for stats_path in sorted(results_dir.rglob("stats.yaml")):
         data = load_yaml_file(stats_path)
         if data:
             return next(iter(data.keys()))
@@ -158,7 +160,7 @@ def read_stats_file(path: Path, pipeline_name: str) -> tuple[dict[str, dict], di
 def collect_records(results_dir: Path, pipeline_name: str) -> tuple[dict[str, dict], dict[str, dict]]:
     sample_records: dict[str, dict] = {}
     project_records: dict[str, dict] = {}
-    for stats_path in sorted(results_dir.glob("*/stats.yaml")):
+    for stats_path in sorted(results_dir.rglob("stats.yaml")):
         samples, projects = read_stats_file(stats_path, pipeline_name)
         sample_records.update(samples)
         project_records.update(projects)
@@ -224,25 +226,15 @@ def rel_href(from_dir: Path, target: str | Path, results_dir: Path | None = None
         return str(target_path).replace("\\", "/")
 
 
-def file_exists(path_str: str | None) -> bool:
-    if not path_str:
-        return False
-    try:
-        return Path(path_str).exists()
-    except OSError:
-        return True
-
-
 def infer_thumbnail_path(path_str: str | None, thumbnail_path: str | None) -> str | None:
-    if file_exists(thumbnail_path):
+    if thumbnail_path:
         return thumbnail_path
     if not path_str:
         return None
     path = Path(path_str)
     if path.suffix.lower() == ".pdf":
         candidate = path.with_suffix(".png")
-        if file_exists(str(candidate)):
-            return str(candidate)
+        return str(candidate)
     return None
 
 
@@ -253,7 +245,7 @@ def object_entries(
     links: list[dict] = []
     for key, value in objects.items():
         path = value.get("path")
-        if not file_exists(path):
+        if not path:
             continue
         entry = {
             "key": key,
@@ -293,6 +285,17 @@ def collect_sample_object_catalog(
 
 
 def record_dir(results_dir: Path, record_name: str) -> Path:
+    candidates = (
+        results_dir / record_name,
+        results_dir / "samples" / record_name,
+        results_dir / "project" if record_name == "project" else None,
+    )
+    for candidate in candidates:
+        if candidate is not None and candidate.exists():
+            return candidate
+    for stats_path in sorted(results_dir.rglob("stats.yaml")):
+        if stats_path.parent.name == record_name:
+            return stats_path.parent
     return results_dir / record_name
 
 
@@ -370,14 +373,16 @@ def render_project_section(results_dir: Path, pipeline_name: str, project_record
 
 def render_sample_page(
     results_dir: Path,
+    report_dir: Path,
     sample_name: str,
     pipeline_name: str,
     sample_scalars: dict[str, object],
     sample_objects: dict[str, dict],
     previous_name: str | None,
     next_name: str | None,
+    has_sample_object_page: bool,
 ) -> str:
-    page_dir = results_dir / "report_samples"
+    page_dir = report_dir
     figures, links = object_entries(sample_objects, page_dir, results_dir)
     log_href = find_log_link(results_dir, sample_name, pipeline_name, page_dir)
     scalar_rows = "".join(
@@ -389,6 +394,8 @@ def render_sample_page(
         nav_links.append(f'<a href="{html.escape(previous_name)}.html">Previous sample</a>')
     if next_name:
         nav_links.append(f'<a href="{html.escape(next_name)}.html">Next sample</a>')
+    if has_sample_object_page:
+        nav_links.append('<a href="sample_objects.html">Compare sample outputs</a>')
     sample_links = "".join(nav_links)
     figure_html = "".join(
         (
@@ -410,13 +417,13 @@ def render_sample_page(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{html.escape(sample_name)} report</title>
-  <link rel="stylesheet" href="../report_assets/report.css">
+  <link rel="stylesheet" href="report.css">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="../report.html">{html.escape(pipeline_name)}</a>
-      <nav class="nav-inline">{sample_links}<a href="../sample_objects.html">Compare sample outputs</a></nav>
+      <nav class="nav-inline">{sample_links}</nav>
     </div>
   </header>
   <main class="layout">
@@ -441,6 +448,7 @@ def render_sample_page(
 
 def render_sample_object_summary_page(
     results_dir: Path,
+    report_dir: Path,
     pipeline_name: str,
     sample_object_catalog: dict[str, dict],
     object_order: list[str],
@@ -457,20 +465,20 @@ def render_sample_object_summary_page(
             }
             for key in object_order
         }
-    )
+    ).replace("</", "<\\/")
     return f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{html.escape(pipeline_name)} sample comparisons</title>
-  <link rel="stylesheet" href="report_assets/report.css">
+  <link rel="stylesheet" href="report.css">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="report.html">{html.escape(pipeline_name)}</a>
-      <nav class="nav-inline"><a href="report.html">Main report</a></nav>
+      <a class="brand" href="../report.html">{html.escape(pipeline_name)}</a>
+      <nav class="nav-inline"><a href="../report.html">Main report</a></nav>
     </div>
   </header>
   <main class="layout">
@@ -483,7 +491,7 @@ def render_sample_object_summary_page(
           {options}
         </select>
       </div>
-      <div id="sample-object-grid" class="figure-grid"></div>
+      <div id="sample-object-grid" class="compare-grid"></div>
     </section>
   </main>
   <script>
@@ -491,21 +499,52 @@ def render_sample_object_summary_page(
     const sampleObjectSelect = document.getElementById("sample-object-select");
     const sampleObjectGrid = document.getElementById("sample-object-grid");
 
+    function escapeHtml(value) {{
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }}
+
+    function safeUrl(value) {{
+      return escapeHtml(value || "#");
+    }}
+
     function renderSampleObject(objectKey) {{
       const payload = sampleObjectCatalog[objectKey];
       if (!payload) {{
         sampleObjectGrid.innerHTML = "<p>No sample objects available.</p>";
         return;
       }}
+      const hasImages = payload.items.some((item) => item.thumbnail_path);
+      sampleObjectGrid.className = hasImages ? "compare-grid compare-grid-images" : "compare-grid compare-grid-files";
       sampleObjectGrid.innerHTML = payload.items.map((item) => {{
-        const thumb = item.thumbnail_path
-          ? `<a class="figure-thumb" href="${{item.path}}"><img src="${{item.thumbnail_path}}" alt="" loading="lazy"></a>`
-          : `<div class="figure-thumb figure-thumb-empty"><a href="${{item.path}}">Open file</a></div>`;
+        const sample = escapeHtml(item.sample);
+        const title = escapeHtml(payload.title);
+        const path = safeUrl(item.path);
+        if (!item.thumbnail_path) {{
+          return `
+            <article class="compare-file-row">
+              <div>
+                <div class="figure-sample-name">${{sample}}</div>
+                <div class="muted">${{title}}</div>
+              </div>
+              <a class="file-button" href="${{path}}">Open</a>
+            </article>
+          `;
+        }}
+        const thumbnail = safeUrl(item.thumbnail_path);
         return `
-          <figure class="card figure-card">
-            <div class="figure-sample-name">${{item.sample}}</div>
-            ${{thumb}}
-            <figcaption>${{payload.title}}</figcaption>
+          <figure class="card figure-card compare-card">
+            <figcaption>
+              <span class="figure-sample-name">${{sample}}</span>
+              <span class="muted">${{title}}</span>
+            </figcaption>
+            <a class="figure-thumb compare-thumb" href="${{path}}">
+              <img src="${{thumbnail}}" alt="" loading="lazy">
+            </a>
           </figure>
         `;
       }}).join("");
@@ -523,10 +562,12 @@ def render_sample_object_summary_page(
 
 def render_main_page(
     results_dir: Path,
+    report_dir: Path,
     pipeline_name: str,
     sample_scalars: dict[str, dict[str, object]],
     project_records: dict[str, dict],
     statuses: dict[str, str],
+    has_sample_object_page: bool,
 ) -> str:
     sample_names = list(sample_scalars.keys())
     sample_count = len(sample_names)
@@ -536,7 +577,7 @@ def render_main_page(
     rows = []
     for sample_name in sample_names:
         row = [
-            f'<td><a href="report_samples/{html.escape(sample_name)}.html">{html.escape(sample_name)}</a></td>',
+            f'<td><a href="report/{html.escape(sample_name)}.html">{html.escape(sample_name)}</a></td>',
             f"<td>{html.escape(statuses.get(sample_name, 'completed' if sample_scalars[sample_name].get('Success') else 'unknown'))}</td>",
         ]
         log_href = find_log_link(results_dir, sample_name, pipeline_name, results_dir)
@@ -556,6 +597,11 @@ def render_main_page(
         for sample_name, values in sample_scalars.items()
     }
     project_html = render_project_section(results_dir, pipeline_name, project_records)
+    sample_objects_link = (
+        '<a href="report/sample_objects.html">Compare sample outputs</a>'
+        if has_sample_object_page
+        else ""
+    )
     metric_options = "".join(
         (
             f'<button type="button" class="metric-item{" active" if index == 0 else ""}" '
@@ -569,13 +615,13 @@ def render_main_page(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{html.escape(pipeline_name)} report</title>
-  <link rel="stylesheet" href="report_assets/report.css">
+  <link rel="stylesheet" href="report/report.css">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <span class="brand">{html.escape(pipeline_name)}</span>
-      <nav class="nav-inline"><a href="sample_objects.html">Compare sample outputs</a></nav>
+      <nav class="nav-inline">{sample_objects_link}</nav>
     </div>
   </header>
   <main class="layout">
@@ -940,6 +986,34 @@ def stylesheet() -> str:
   gap: 18px;
 }
 
+.compare-grid {
+  margin-top: 18px;
+}
+
+.compare-grid-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.compare-grid-files {
+  display: grid;
+  gap: 10px;
+}
+
+.compare-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.compare-card figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 10px;
+}
+
 .figure-sample-name {
   font-size: 1rem;
   font-weight: 700;
@@ -980,9 +1054,48 @@ def stylesheet() -> str:
   font-weight: 600;
 }
 
+.compare-thumb {
+  height: 220px;
+}
+
+.compare-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.compare-file-row .figure-sample-name {
+  margin-bottom: 2px;
+}
+
+.file-button {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .figure-card figcaption {
   margin-top: 10px;
   font-weight: 600;
+}
+
+.figure-card.compare-card figcaption {
+  margin: 0 0 10px;
+}
+
+.compare-card .figure-sample-name {
+  margin-bottom: 0;
 }
 
 .link-list {
@@ -996,6 +1109,16 @@ def stylesheet() -> str:
   }
 }
 """
+
+
+def clean_legacy_report_layout(results_dir: Path) -> None:
+    for legacy_dir in ("report_assets", "report_samples"):
+        path = results_dir / legacy_dir
+        if path.exists():
+            shutil.rmtree(path)
+    legacy_page = results_dir / "sample_objects.html"
+    if legacy_page.exists():
+        legacy_page.unlink()
 
 
 def main() -> int:
@@ -1015,15 +1138,14 @@ def main() -> int:
         for name, record in sorted(sample_records.items())
     }
     project_records = dict(sorted(project_records.items()))
+    report_dir = results_dir / "report"
+    clean_legacy_report_layout(results_dir)
     sample_object_catalog, sample_object_order = collect_sample_object_catalog(
-        sample_objects, results_dir, results_dir
+        sample_objects, report_dir, results_dir
     )
 
-    assets_dir = results_dir / "report_assets"
-    pages_dir = results_dir / "report_samples"
-    assets_dir.mkdir(exist_ok=True)
-    pages_dir.mkdir(exist_ok=True)
-    (assets_dir / "report.css").write_text(stylesheet(), encoding="utf-8")
+    report_dir.mkdir(exist_ok=True)
+    (report_dir / "report.css").write_text(stylesheet(), encoding="utf-8")
 
     sample_names = list(sample_scalars.keys())
     for index, sample_name in enumerate(sample_names):
@@ -1031,30 +1153,35 @@ def main() -> int:
         next_name = sample_names[index + 1] if index + 1 < len(sample_names) else None
         page = render_sample_page(
             results_dir,
+            report_dir,
             sample_name,
             pipeline_name,
             sample_scalars[sample_name],
             sample_objects[sample_name],
             previous_name,
             next_name,
+            bool(sample_object_order),
         )
-        (pages_dir / f"{sample_name}.html").write_text(page, encoding="utf-8")
+        (report_dir / f"{sample_name}.html").write_text(page, encoding="utf-8")
 
     if sample_object_order:
         sample_objects_page = render_sample_object_summary_page(
             results_dir,
+            report_dir,
             pipeline_name,
             sample_object_catalog,
             sample_object_order,
         )
-        (results_dir / "sample_objects.html").write_text(sample_objects_page, encoding="utf-8")
+        (report_dir / "sample_objects.html").write_text(sample_objects_page, encoding="utf-8")
 
     main_page = render_main_page(
         results_dir,
+        report_dir,
         pipeline_name,
         sample_scalars,
         project_records,
         statuses,
+        bool(sample_object_order),
     )
     (results_dir / "report.html").write_text(main_page, encoding="utf-8")
     return 0
