@@ -344,7 +344,7 @@ def render_project_section(results_dir: Path, pipeline_name: str, project_record
         figure_html = "".join(
             (
                 '<figure class="card figure-card">'
-                f'<a href="{html.escape(item["path"])}"><img src="{html.escape(item["thumbnail_path"])}" alt="" loading="lazy"></a>'
+                f'<a class="figure-thumb" href="{html.escape(item["path"])}"><img src="{html.escape(item["thumbnail_path"])}" alt="" loading="lazy"></a>'
                 f'<figcaption>{html.escape(item["title"])}</figcaption>'
                 "</figure>"
             )
