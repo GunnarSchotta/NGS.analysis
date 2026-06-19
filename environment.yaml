@@ -1,0 +1,42 @@
+name: ngs.v2
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  # ── Python runtime ────────────────────────────────────────────────────────
+  - python=3.12
+
+  # ── Sequence alignment & processing ──────────────────────────────────────
+  - star=2.7
+  - bowtie2
+  - samtools
+  - bedtools
+  - picard
+  - trimmomatic=0.40
+  - subread          # featureCounts
+  - rsem             # TPM quantification (RNA-seq)
+  - deeptools        # bamCoverage / BigWig
+
+  # ── Quality control ───────────────────────────────────────────────────────
+  - fastqc
+
+  # ── Python pipeline framework ─────────────────────────────────────────────
+  - peppy
+  - pipestat
+  - ubiquerg
+
+  # ── R and required packages ───────────────────────────────────────────────
+  - r-base=4
+  - r-argparser
+  - r-pepr
+  - r-data.table
+  - r-reshape2
+  - r-ggplot2
+  - r-yaml
+  - bioconductor-summarizedexperiment
+
+  # ── pip-only packages ─────────────────────────────────────────────────────
+  - pip
+  - pip:
+    - looper==2.1.1
+    - piper==0.15.1

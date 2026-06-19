@@ -32,63 +32,50 @@ pipeline variant.
 
 ## Installation
 
-The pipeline requires installation in a fresh conda environment. The following steps are necessary:
+### 1. Install micromamba
 
-***first use of conda:*** install Anaconda3 from https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html
-initialize conda base environment:
-    conda init
+Follow the instructions at https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html
 
-update conda packages:
+```bash
+"${SHELL}" <(curl -L micro.mamba.pm/install.sh)
+```
 
-    conda update -n base -c defaults conda
+### 2. Clone the pipeline
 
-add conda-forge and bioconda channels:
+```bash
+git clone https://github.com/GunnarSchotta/NGS.analysis
+cd NGS.analysis
+```
 
-    conda config --add channels conda-forge
-    conda config --add channels bioconda
+### 3. Create the environment
 
-Create fresh conda environment for ngs pipeline:
+```bash
+micromamba env create -f environment.yaml
+micromamba activate ngs.v2
+```
 
-    conda env create -n ngs Python=3.9
-    conda activate ngs
+This installs all required tools in one step:
+- Alignment: STAR, Bowtie2, Samtools, Bedtools
+- Quantification: featureCounts (Subread), RSEM, deepTools
+- Quality control: FastQC, Trimmomatic, Picard
+- Pipeline framework: looper, piper, pipestat, peppy
+- R packages: pepr, data.table, ggplot2, SummarizedExperiment, and others
 
-Install python packages
+### 4. Configure the pipeline
 
-    conda install -c bioconda samtools
-    conda install -c bioconda bedtools
-    conda install -c bioconda -c conda-forge bowtie2
-    conda install -c bioconda fastqc
-    conda install -c bioconda subread
-    conda install -c bioconda trimmomatic
-    conda install -c bioconda picard
-    conda install -c conda-forge -c bioconda deeptools
-    conda install -c bioconda star
+Adjust the paths in the two pipeline interface files to match your installation:
 
-Install R libraries
+- `sample_pipeline_interface.yaml` — path to `NGS.analysis.py`
+- `project_pipeline_interface.yaml` — path to `NGS.analysis.collator.py`
 
-open terminal and start R
+Genome indexes and annotation paths are set per-project in `analysis.configuration.yaml`
+(see `example/analysis.configuration.yaml`).
 
-    install.packages("argparser")
-    install.packages("pepr")
-    install.packages("reshape2")
-    install.packages("ggplot2")
-    install.packages("optigrab")
+### Reproducibility
 
-    if (!require("BiocManager", quietly = TRUE))
-        install.packages("BiocManager")
+`requirements.yaml` contains the full pinned environment export used during development.
+To reproduce the exact environment:
 
-    BiocManager::install("SummarizedExperiment")
-
-Install Looper
-
-    python -m pip install looper
-    python -m pip install piper
-
-clone NGS.analysis pipeline (in /home folder)
-
-    git clone https://github.com/GunnarSchotta/NGS.analysis
-
-adjust path and configuration settings in:
-* NGS.analysis.yaml
-* sample_pipeline_interface.yaml
-* project_pipeline_interface.yaml
+```bash
+micromamba env create -f requirements.yaml
+```
