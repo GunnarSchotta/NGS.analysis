@@ -16,6 +16,10 @@ sample_modifiers:
       R2: "/store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/example/{fastq2}"
   imply:
     - if:
+        protocol: RNA
+      then:
+        strandedness: reverse
+    - if:
         organism: ["mouse", "mm10", "Mouse"]
       then:
         genome: mm10
@@ -26,6 +30,7 @@ sample_modifiers:
         repeats_SAFid: /store24/project24/becgsc_001/genomes/mm10/Annotation/Genes/rmsk.ids.mm10.160322.SAF #Repeat coordinates for FeatureCounts
         refgene_tss: /store24/project24/becgsc_001/genomes/mm10/Annotation/Genes/mm10_TSS.bed
         genome_index: /store24/project24/becgsc_001/genomes/mm10/Sequence/WholeGenomeFasta/genome.fa.fai
+        rsem_index: /home/gschotta/project24/becgsc_001/genomes/mm10/RSEM/RSEM
     - if:
         organism: ["human", "hg38", "Human"]
       then:
@@ -37,3 +42,4 @@ sample_modifiers:
         repeats_SAFid: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.ids.hg38.291122.SAF #Repeat coordinates for FeatureCounts
         refgene_tss: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/hg38_TSS.bed
         genome_index: /store24/project24/becgsc_001/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa.fai
+        rsem_index: /home/gschotta/project24/becgsc_001/genomes/hg38/RSEM/RSEM

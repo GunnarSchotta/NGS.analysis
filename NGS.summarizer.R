@@ -380,3 +380,42 @@ if (nrow(RNA_samples) > 0) {
 	gc.se <- SummarizedExperiment(assays = list(counts=gcm), colData = sample_table[sample_table$sample_name %in% RNA_samples$sample_name,])
 	saveRDS(gc.se, file = sense_gene_counts_rds)
 }
+
+###################################################
+# Generate RSEM TPM summary for RNA-seq data
+if (nrow(RNA_samples) > 0) {
+  first_sample <- RNA_samples$sample_name[1]
+  first_genome <- genomes[project_samples == first_sample][1]
+  rsem_check_file <- file.path(results_subdir, first_sample,
+                                paste0("aligned_", first_genome),
+                                paste0(first_sample, ".rsem.genes.results"))
+  if (file.exists(rsem_check_file)) {
+    write("Creating RSEM TPM summary...", stdout())
+    tpm_data <- NULL
+    for (sample in RNA_samples$sample_name) {
+      sample_genome <- genomes[project_samples == sample][1]
+      sample_rsem_file <- file.path(results_subdir, sample,
+                                     paste0("aligned_", sample_genome),
+                                     paste0(sample, ".rsem.genes.results"))
+      if (!file.exists(sample_rsem_file)) next
+      t <- fread(sample_rsem_file, header=TRUE, sep="\t",
+                 select=c("gene_id", "TPM"))
+      setnames(t, "TPM", sample)
+      if (is.null(tpm_data)) {
+        tpm_data <- t
+      } else {
+        tpm_data <- merge(tpm_data, t, by="gene_id", all=TRUE)
+      }
+    }
+    if (!is.null(tpm_data)) {
+      tpm_tsv <- file.path(summary_dir, paste0(project_name, "_tpm_summary.tsv"))
+      fwrite(tpm_data, tpm_tsv, sep="\t", col.names=TRUE)
+      tpm_rds <- file.path(summary_dir, paste0(project_name, "_tpm_summary.rds"))
+      tpm_m <- as.matrix(tpm_data[, 2:ncol(tpm_data)])
+      rownames(tpm_m) <- tpm_data$gene_id
+      rna_sample_table <- sample_table[sample_table$sample_name %in% RNA_samples$sample_name, ]
+      tpm.se <- SummarizedExperiment(assays = list(TPM=tpm_m), colData = rna_sample_table)
+      saveRDS(tpm.se, file=tpm_rds)
+    }
+  }
+}

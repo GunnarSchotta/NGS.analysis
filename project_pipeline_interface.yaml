@@ -19,5 +19,5 @@ project_interface:
 compute:
   mem: 20G
   cores: 32
-  partition: slim16
-  time: 08:00:00
+  partition: slim18
+  time: 01:00:00

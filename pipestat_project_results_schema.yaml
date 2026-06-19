@@ -85,6 +85,34 @@ projects:
       - path
       - title
     description: "Sense-strand gene count summary for RNA samples."
+  tpm_tsv_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "RSEM TPM table (TSV, genes x samples) for all RNA samples."
+  tpm_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "RSEM TPM matrix (SummarizedExperiment RDS) for all RNA samples."
   IAP_coverage_samples:
     type: object
     object_type: image

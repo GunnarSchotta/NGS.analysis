@@ -188,6 +188,34 @@ samples:
       - path
       - title
     description: "Deduplicated BigWig file"
+  RSEM_genes_results:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "RSEM per-gene results (TPM, FPKM, expected counts)."
+  RSEM_isoforms_results:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "RSEM per-isoform results (TPM, FPKM, expected counts)."
   TSS enrichment:
     type: object
     object_type: image

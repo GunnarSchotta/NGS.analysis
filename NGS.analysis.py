@@ -59,6 +59,12 @@ parser.add_argument("--repeats_SAF", dest="repeats_SAF", type=str,
 parser.add_argument("--repeats_SAFid", dest="repeats_SAFid", type=str,
                         default=None,
                         help="Repeats SAF file for featureCounts, individual Repeats")
+parser.add_argument("--rsem-index", dest="rsem_index", type=str,
+                        default=None,
+                        help="RSEM transcriptome index prefix (for TPM quantification).")
+parser.add_argument("--strandedness", dest="strandedness", type=str,
+                        default="reverse", choices=["none", "forward", "reverse"],
+                        help="Library strandedness passed to rsem-calculate-expression.")
 parser.add_argument("--pipestat-config", dest="pipestat_config", type=str,
                         default=None,
                         help="Looper-generated pipestat config file path.")
@@ -92,7 +98,8 @@ def _build_protocol_schema(base_schema, protocol, paired_end):
     if protocol == "RNA":
         keep |= {"Input_reads", "Unique_reads", "Multimapped_reads",
                  "Multimapped_too_many_loci_reads", "Unmapped_reads",
-                 "Unique_Mapping_rate", "Multi_Mapping_rate", "BigWig"}
+                 "Unique_Mapping_rate", "Multi_Mapping_rate", "BigWig",
+                 "RSEM_genes_results", "RSEM_isoforms_results"}
     else:
         keep.add("BigWig_dedup")
         if protocol == "ATAC":
@@ -544,6 +551,30 @@ else: #pipeline_mode: genes
 
 #report BAM file
 pm.report_object("BAM_mapped", mapping_genome_bam)
+
+############################################################################
+#                     RSEM quantification (RNA-seq)                        #
+############################################################################
+
+if args.protocol == "RNA" and args.rsem_index:
+    pm.timestamp("### RSEM quantification: ")
+    transcriptome_bam = mapping_genome_bam_star_path + "Aligned.toTranscriptome.out.bam"
+    rsem_output_prefix = os.path.join(map_genome_folder, args.sample_name + ".rsem")
+    rsem_genes_results = rsem_output_prefix + ".genes.results"
+    rsem_isoforms_results = rsem_output_prefix + ".isoforms.results"
+
+    cmd_rsem = "rsem-calculate-expression --alignments"
+    if args.paired_end:
+        cmd_rsem += " --paired-end"
+    cmd_rsem += " --strandedness " + args.strandedness
+    cmd_rsem += " --no-bam-output"
+    cmd_rsem += " -p " + str(pm.cores)
+    cmd_rsem += " " + transcriptome_bam
+    cmd_rsem += " " + args.rsem_index
+    cmd_rsem += " " + rsem_output_prefix
+    pm.run(cmd_rsem, rsem_genes_results)
+    pm.report_object("RSEM_genes_results", rsem_genes_results)
+    pm.report_object("RSEM_isoforms_results", rsem_isoforms_results)
 
 #check insert size distribution
 if args.paired_end and (not args.protocol == "RNA"):

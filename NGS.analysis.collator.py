@@ -99,6 +99,16 @@ def collect_project_results(project_name: str, summary_dir: str) -> dict[str, di
             "Sense gene counts summary",
             "file",
         ),
+        "tpm_tsv_file": (
+            os.path.join(summary_path, f"{project_name}_tpm_summary.tsv"),
+            "RSEM TPM table (genes x samples)",
+            "file",
+        ),
+        "tpm_file": (
+            os.path.join(summary_path, f"{project_name}_tpm_summary.rds"),
+            "RSEM TPM summary",
+            "file",
+        ),
         "IAP_coverage_samples": (
             os.path.join(summary_path, f"{project_name}_IAP_coverage_samples.pdf"),
             os.path.join(summary_path, f"{project_name}_IAP_coverage_samples.png"),
