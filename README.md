@@ -61,7 +61,16 @@ This installs all required tools in one step:
 - Pipeline framework: looper, piper, pipestat, peppy
 - R packages: pepr, data.table, ggplot2, SummarizedExperiment, and others
 
-### 4. Configure the pipeline
+### 4. Install r-optigrab from CRAN
+
+One R package used for TSS enrichment plots (`plot.TSS.enrichment.R`) is not on
+conda-forge and must be installed from CRAN after activating the environment:
+
+```bash
+Rscript -e 'install.packages("optigrab", repos="https://cloud.r-project.org")'
+```
+
+### 5. Configure the pipeline
 
 Adjust the paths in the two pipeline interface files to match your installation:
 

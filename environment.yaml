@@ -25,7 +25,11 @@ dependencies:
   - pipestat
   - ubiquerg
 
-  # ── R and required packages ───────────────────────────────────────────────
+  # ── Python scientific ─────────────────────────────────────────────────────
+  - numpy            # pyTssEnrichment.py
+  - pysam            # pyTssEnrichment.py
+
+  # ── R core packages ───────────────────────────────────────────────────────
   - r-base=4
   - r-argparser
   - r-pepr
@@ -34,6 +38,14 @@ dependencies:
   - r-ggplot2
   - r-yaml
   - bioconductor-summarizedexperiment
+
+  # ── R Shiny app packages (NGS.shiny.app.R) ────────────────────────────────
+  - r-shiny
+  - r-dt
+  - r-plotly
+  - r-shinyjs
+  - r-shinyfiles
+  - bioconductor-deseq2
 
   # ── pip-only packages ─────────────────────────────────────────────────────
   - pip
