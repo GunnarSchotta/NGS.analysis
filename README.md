@@ -13,10 +13,14 @@ Samples need to be specified in a sample list containing the columns exactly as 
 The project yaml file is used to specify the project name, the pipeline run mode (genes/repeats), the location of the fastq files and additional configuration settings (which usually don't need to be changed).
 
 The pipeline can be started with:
- ```looper run -p slurm project.yaml```
+```
+looper run -p slurm
+```
 
 After completion, the summary can be calculated with:
- ```looper runp -p slurm project.yaml```
+```
+looper runp -p slurm
+```
 
 Finally, generate the custom report from the looper project directory
 (the directory that contains `.looper.yaml`):
