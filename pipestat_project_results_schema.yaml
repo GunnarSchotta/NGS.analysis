@@ -85,6 +85,20 @@ projects:
       - path
       - title
     description: "Sense-strand gene count summary for RNA samples."
+  igv_session_bw:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "IGV session file with all BigWig tracks (cluster paths translated to X:/)."
   tpm_tsv_file:
     type: object
     object_type: file

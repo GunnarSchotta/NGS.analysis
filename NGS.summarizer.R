@@ -113,6 +113,29 @@ getResultFilesFromYaml <- function(samples, results_subdir, field) {
 }
 
 
+getResultPathFromYaml <- function(samples, results_subdir, field) {
+    # Like getResultFilesFromYaml but correctly extracts the path from
+    # pipestat file objects ({path: ..., title: ...}) or plain strings.
+    rf <- NULL
+    for (sample in samples) {
+        yaml_file <- file.path(results_subdir, sample, "stats.yaml")
+        if (!file.exists(yaml_file)) next
+        y <- yaml::read_yaml(yaml_file)
+        pipe_name <- names(y)[1]
+        node <- tryCatch(y[[pipe_name]][["sample"]][[sample]], error = function(e) NULL)
+        if (is.null(node)) next
+        val <- node[[field]]
+        if (is.null(val)) next
+        path <- if (is.list(val)) val[["path"]] else as.character(val)
+        if (!is.null(path) && nchar(path) > 0) {
+            t <- data.table(sample_name = sample, path = path)
+            rf <- if (is.null(rf)) t else rbind(rf, t, fill = TRUE)
+        }
+    }
+    return(rf)
+}
+
+
 ################################################################################
 ##### MAIN #####
 
@@ -152,6 +175,33 @@ stats <- createStatsSummary(project_samples, results_subdir)
 if (is.null(stats) || nrow(stats) == 0) quit()
 project_stats_file <- file.path(summary_dir, paste0(project_name, '_stats_summary.tsv'))
 fwrite(stats, project_stats_file, sep = "\t", col.names = TRUE)
+
+
+################################################################################
+# Generate BigWig IGV session file
+# RNA samples report BigWig; all others report BigWig_dedup
+write("Creating BigWig IGV session file...", stdout())
+
+bw_rna   <- getResultPathFromYaml(project_samples, results_subdir, "BigWig")
+bw_dedup <- getResultPathFromYaml(project_samples, results_subdir, "BigWig_dedup")
+bw_files <- rbind(bw_rna, bw_dedup, fill = TRUE)
+
+if (!is.null(bw_files) && nrow(bw_files) > 0) {
+    igv_genome <- genome[1]
+    igv_xml <- file.path(dirname(argv$output), paste0(project_name, "_BigWig_igv_session.xml"))
+    xml_lines <- c(
+        '<?xml version="1.0" encoding="UTF-8" standalone="no"?>',
+        paste0('<Session genome="', igv_genome,
+               '" hasGeneTrack="true" hasSequenceTrack="true" locus="All" version="8">'),
+        "  <Resources>"
+    )
+    for (i in seq_len(nrow(bw_files))) {
+        bw_path <- gsub("/store24/project24/", "X:/", bw_files$path[i], fixed = TRUE)
+        xml_lines <- c(xml_lines, paste0('    <Resource path="', bw_path, '"/>'))
+    }
+    xml_lines <- c(xml_lines, "  </Resources>", "</Session>")
+    writeLines(xml_lines, igv_xml)
+}
 
 
 # ########################
