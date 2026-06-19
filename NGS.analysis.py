@@ -321,9 +321,9 @@ pm.timestamp("### Adapter trimming: ")
 
 #Adapters: Nextera for ATAC and C&T; Illumina for rest
 if args.protocol in ["ATAC", "CT"]:
-    adapters = res.adapters_nextera
+    adapters = tool_path("NexteraPE-PE.fa")
 else:
-    adapters = res.adapters_illumina
+    adapters = tool_path("TruSeq3-PE-2.fa")
 
 # Create names for trimmed FASTQ files.
 
@@ -791,13 +791,13 @@ if args.genome_assembly == "mm10":
 
     #generate Coverage using bedtools coverage
     #Plus orientation
-    cmd = tools.bedtools + " coverage -g " + args.genome_index + " -sorted -d -a " + res.gag_plus
+    cmd = tools.bedtools + " coverage -g " + args.genome_index + " -sorted -d -a " + tool_path("gag.plus.15k.sorted.bed")
     cmd += " -b " + mapping_genome_bam
     cmd += " > " + IAP_plus
     pm.run(cmd, IAP_plus)
 
     #Minus Orientation
-    cmd = tools.bedtools + " coverage -g " + args.genome_index + " -sorted -d -a " + res.gag_minus
+    cmd = tools.bedtools + " coverage -g " + args.genome_index + " -sorted -d -a " + tool_path("gag.minus.15k.sorted.bed")
     cmd += " -b " + mapping_genome_bam
     cmd += " > " + IAP_minus
     pm.run(cmd, IAP_minus)
