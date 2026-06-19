@@ -12,7 +12,7 @@ dependencies:
   - samtools
   - bedtools
   - picard
-  - trimmomatic=0.40
+  - trimmomatic=0.39
   - subread          # featureCounts
   - rsem             # TPM quantification (RNA-seq)
   - deeptools        # bamCoverage / BigWig
