@@ -22,7 +22,8 @@ dependencies:
 
   # ── Python pipeline framework ─────────────────────────────────────────────
   - peppy
-  - pipestat
+  - pipestat=0.12.2
+  - piper             # from bioconda
   - ubiquerg
 
   # ── Python scientific ─────────────────────────────────────────────────────
@@ -51,4 +52,3 @@ dependencies:
   - pip
   - pip:
     - looper==2.1.1
-    - piper==0.15.1
