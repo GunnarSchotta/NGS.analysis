@@ -25,7 +25,7 @@ y() { $E/python3 -c "import yaml;print(yaml.safe_load(open('$CODE/genomes/$G.yam
 FA=$(y fasta); BT2=$(y bowtie2_index); STARIDX=$(y star_genome_index); SAF=$(y repeats_saf)
 N=16
 # rmsk BED (name in col 4, class col 5) from the family SAF (class: name only, SAF has no class)
-[ -s rmsk.bed ] || awk 'NR>1{OFS="\t"; print $2,$3-1,$4,$1,$1,$5}' $SAF | sort -k1,1 -k2,2n > rmsk.bed
+[ -s rmsk.bed ] || awk 'NR>1 && $2=="chr1"{OFS="\t"; s=$3-1; if (s<0) s=0; print $2,s,$4,$1,$1,$5}' $SAF | sort -k1,1 -k2,2n > rmsk.bed  # chr1 (simulated) only
 [ -s chr1.fa ] || samtools faidx $FA chr1 > chr1.fa
 
 align_all() {  # $1 = prefix of R1/R2 fastq
@@ -60,8 +60,8 @@ done
 P=adapt60
 [ -s ${P}_R1.fastq ] || $E/python3 $CODE/benchmark/simulate_adapters.py $FA chr1 300000 60 $P
 AD=$CODE/NexteraPE-PE.fa
-[ -s ${P}.v2_R1.fq ] || trimmomatic PE -threads $N ${P}_R1.fastq ${P}_R2.fastq ${P}.v2_R1.fq /dev/null ${P}.v2_R2.fq /dev/null ILLUMINACLIP:$AD:2:30:10 MINLEN:30 2> ${P}.v2.trim.log
-[ -s ${P}.v3_R1.fq ] || trimmomatic PE -threads $N ${P}_R1.fastq ${P}_R2.fastq ${P}.v3_R1.fq /dev/null ${P}.v3_R2.fq /dev/null ILLUMINACLIP:$AD:2:30:10:1:true MINLEN:30 2> ${P}.v3.trim.log
+[ -s ${P}.v2_R1.fq ] || trimmomatic PE -phred33 -threads $N ${P}_R1.fastq ${P}_R2.fastq ${P}.v2_R1.fq /dev/null ${P}.v2_R2.fq /dev/null ILLUMINACLIP:$AD:2:30:10 MINLEN:30 2> ${P}.v2.trim.log
+[ -s ${P}.v3_R1.fq ] || trimmomatic PE -phred33 -threads $N ${P}_R1.fastq ${P}_R2.fastq ${P}.v3_R1.fq /dev/null ${P}.v3_R2.fq /dev/null ILLUMINACLIP:$AD:2:30:10:1:true MINLEN:30 2> ${P}.v3.trim.log
 [ -s ${P}.v2.bam ] || bowtie2 -p $N --very-sensitive -X 2000 -x $BT2 -1 ${P}.v2_R1.fq -2 ${P}.v2_R2.fq 2> ${P}.v2.bt2.log | samtools view -b -o ${P}.v2.bam -
 [ -s ${P}.v3.bam ] || bowtie2 -p $N --very-sensitive -X 2000 --dovetail -x $BT2 -1 ${P}.v3_R1.fq -2 ${P}.v3_R2.fq 2> ${P}.v3.bt2.log | samtools view -b -o ${P}.v3.bam -
 $E/python3 $CODE/benchmark/evaluate.py adapt ${P}.v2.bam "$G:adapt60:v2trim_v2bt2:q42" eval_adapt_v2.tsv ${P}_R1.fastq

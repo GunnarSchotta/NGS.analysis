@@ -1,4 +1,7 @@
-# mhaESC v1.1 + mT2T-Y v1.0 (C57BL/6-derived T2T mouse); chrY PAR hard-masked; Liftoff Ensembl + novel genes; RepeatMasker (Dfam)
+# mhaESC v1.1 + mT2T-Y v1.1 (C57BL/6-derived T2T mouse, release 2026-01-29); chrY PAR hard-masked by the build;
+# combined gene annotation 260129 (incl. chrY); RepeatMasker: autosomes/X/M mouse.241018 + chrY mT2T-Y v1.1.
+# Caveat: chrY repeat names include many cross-species library hits (e.g. Ginger1-N1_DR, Kolobok-3_Aplcal) for
+# Y-specific amplicon repeats - use chrY family names with caution.
 # Built by resources/genomes/build_genome.sh (see genomes/mhaESC/PREP_REPORT.txt). No ENCODE blacklist exists for this
 # assembly yet (blacklist: null): filtered BAMs are not blacklist-filtered.
 genome: mhaESC

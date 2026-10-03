@@ -9,6 +9,7 @@
                per true fragment length: % recovered = R1 proper pair, MAPQ>=q, correct start (+-2) and length (+-2).
 """
 import collections
+import os
 import subprocess
 import sys
 
@@ -17,7 +18,7 @@ import pysam
 
 
 def mapq_of(label):
-    return int(label.split(":q")[1]) if ":q" in label else 30
+    return int(label.split(":q")[-1].lstrip("q")) if ":q" in label else 30
 
 
 if sys.argv[1] == "art":
@@ -32,20 +33,19 @@ if sys.argv[1] == "art":
                 s = min(r.reference_start, r.next_reference_start) if r.is_paired else r.reference_start
                 e = s + abs(r.template_length) if r.template_length else r.reference_end
                 o.write(f"{r.reference_name}\t{s}\t{e}\t{r.query_name.split('/')[0]}\t{r.reference_start}\n")
-    fam, truepos = {}, {}
-    for line in open(frag_bed):
-        c = line.split("\t")
-        truepos[c[3]] = (c[0], int(c[4]))
-    best = {}
-    p = subprocess.run(f"bedtools intersect -wo -a {frag_bed} -b {rmsk}", shell=True, capture_output=True, text=True)
-    for line in p.stdout.splitlines():
-        c = line.split("\t")
-        ov, name, rep, cls = int(c[-1]), c[3], c[8], c[9]
+    best = {}   # fragment -> (overlap, family, class, true chrom, true R1 start); streamed (whole output = tens of GB)
+    p = subprocess.Popen(["bedtools", "intersect", "-wo", "-a", frag_bed, "-b", rmsk], stdout=subprocess.PIPE, text=True)
+    for line in p.stdout:
+        c = line.rstrip("\n").split("\t")
+        ov, name = int(c[-1]), c[3]
         if name not in best or ov > best[name][0]:
-            best[name] = (ov, rep, cls)
+            best[name] = (ov, c[8], c[9], c[0], int(c[4]))
+    if p.wait():
+        sys.exit("bedtools intersect failed")
+    os.remove(frag_bed)
     stats = collections.defaultdict(lambda: [0, 0, 0, 0])   # n, aligned, unique, unique_correct
-    for name, (_, rep, cls) in best.items():
-        stats[(rep, cls)][0] += 1
+    for name, v in best.items():
+        stats[v[1:3]][0] += 1
     with pysam.AlignmentFile(bam) as b:
         for r in b.fetch(until_eof=True):
             if not r.is_read1 or r.is_secondary or r.is_supplementary:
@@ -53,13 +53,13 @@ if sys.argv[1] == "art":
             name = r.query_name.split("/")[0]
             if name not in best:
                 continue
-            k = best[name][1:]
+            k = best[name][1:3]
             if r.is_unmapped:
                 continue
             stats[k][1] += 1
             if r.mapping_quality >= q:
                 stats[k][2] += 1
-                tc, tp = truepos[name]
+                tc, tp = best[name][3:5]
                 if r.reference_name == tc and abs(r.reference_start - tp) <= 5:
                     stats[k][3] += 1
     rows = [{"label": label, "family": k[0], "class": k[1], "n": v[0], "aligned_pct": 100 * v[1] / v[0],

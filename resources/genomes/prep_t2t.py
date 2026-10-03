@@ -9,8 +9,9 @@ Writes (layout as for mm10/hg38):
 
 hs1    : T2T-CHM13v2.0 analysis set (PAR-masked chrY, rCRS chrM); CAT/Liftoff GENCODE v35 annotation;
          UCSC hs1 RepeatMasker (.out). Element IDs: repName_chr:start-end (hg38 convention).
-mhaESC : mhaESC v1.1 + mT2T-Y v1.0 (Chr01 -> chr1 ...); Liftoff/novel annotation (GFF3) with Ensembl GRCm39 r110
-         transcript -> gene symbol mapping; RepeatMasker GFF (mouse.241018.repeats.gff). Element IDs:
+mhaESC : mhaESC v1.1 + mT2T-Y v1.1 (release 2026-01-29; Chr01 -> chr1 ...); combined gene annotation
+         mhaESC_v1.1_with_mT2T-Y_v1.1.260129.gff3 (gene_name attribute); RepeatMasker GFF = mouse.241018.repeats.gff
+         (chr1-19, X, M) + mT2T-Y_v1.1.repeats.gff (chrY). Element IDs:
          repName.chr:start-end (mm10 convention). chrY pseudoautosomal region: detected by k-mer identity with the
          distal chrX and hard-masked (N) on chrY if present, so that PAR reads are not multimappers.
 """
@@ -90,7 +91,9 @@ def find_par(seqs, k=50, win=10000, region=3_000_000, frac=0.8, samples=40):
             hits.append((pos, len(y)))
         if end_side == "p" and pos > 0:
             hits.append((0, pos))
-    return hits
+    # a chromosome end that matches chrX only through its telomere repeat (TTAGGG)n is not a PAR
+    telo = lambda s: 6 * (s.count("TTAGGG") + s.count("CCCTAA")) / max(len(s), 1)
+    return [h for h in hits if telo(y[h[0]:h[1]]) < 0.5], [h for h in hits if telo(y[h[0]:h[1]]) >= 0.5]
 
 
 # ----------------------------------------------------------------------------- genome FASTA
@@ -98,9 +101,11 @@ if G == "hs1":
     seqs = read_fasta(os.path.join(SRC, "hs1/source/chm13v2.0_maskedY_rCRS.fa.gz"))
     report.append("FASTA: chm13v2.0_maskedY_rCRS (chrY PARs hard-masked by the T2T consortium; chrM = rCRS)")
 else:
-    seqs = read_fasta(os.path.join(SRC, "mhaESC/mhaESC_v1.1_with_mT2T-Y_v1.0.250617.fasta.gz"), rename_mha)
-    report.append("FASTA: mhaESC_v1.1_with_mT2T-Y_v1.0.250617 (Chr01 -> chr1, ChrX -> chrX, ChrY -> chrY, ChrM -> chrM)")
-    par = find_par(seqs)
+    seqs = read_fasta(os.path.join(SRC, "mhaESC/source/release_Y1.1/mhaESC_v1.1_with_mT2T-Y_v1.1.251107.fasta.gz"), rename_mha)
+    report.append("FASTA: mhaESC_v1.1_with_mT2T-Y_v1.1.251107 (Chr01 -> chr1, ChrX -> chrX, ChrY -> chrY, ChrM -> chrM)")
+    par, telo_only = find_par(seqs)
+    if telo_only:
+        report.append(f"chrY end region(s) matching chrX only via telomere repeat, not masked: {telo_only}")
     if par:
         y = list(seqs["chrY"])
         for s, e in par:
@@ -129,7 +134,7 @@ if G == "hs1":
                 o.write(line)
     name_of = None
 else:
-    gff = os.path.join(SRC, "mhaESC/mhaESC.annotation.v1.1.1.20250623.gff3.gz")
+    gff = os.path.join(SRC, "mhaESC/source/release_Y1.1/mhaESC_v1.1_with_mT2T-Y_v1.1.260129.gff3.gz")
     tmp_gff = os.path.join(anndir, "tmp.gff3")
     with zopen(gff) as f, open(tmp_gff, "w") as o:
         for line in f:
@@ -139,15 +144,7 @@ else:
             c = line.split("\t")
             c[0] = rename_mha(c[0])
             o.write("\t".join(c))
-    # Ensembl transcript (no version) -> gene symbol
-    name_of = {}
-    for line in zopen(os.path.join(SRC, "mhaESC/source/Mus_musculus.GRCm39.110.gtf.gz")):
-        if line.startswith("#") or "\ttranscript\t" not in line:
-            continue
-        t = re.search(r'transcript_id "([^"]+)"', line)
-        gname = re.search(r'gene_name "([^"]+)"', line)
-        if t and gname:
-            name_of[t.group(1)] = gname.group(1)
+    name_of = None   # the 2026 combined annotation carries gene_name on every transcript
 subprocess.check_call([GFFREAD, tmp_gff, "-T", "-o", gtf])
 tss = set()
 for line in open(tmp_gff):
@@ -192,8 +189,10 @@ with open(saf, "w") as s, open(safid, "w") as si, open(bed, "w") as b:
             b.write(f"{ch}\t{st - 1}\t{en}\t{rep}\t{cls}\t{strand}\n")
             n += 1
     else:
-        src = os.path.join(SRC, "mhaESC/mouse.241018.repeats.gff.gz")
-        for line in zopen(src):
+        srcs = [os.path.join(SRC, "mhaESC/mouse.241018.repeats.gff.gz"),
+                os.path.join(SRC, "mhaESC/source/release_Y1.1/mT2T-Y_v1.1.repeats.gff.gz")]
+        src = " + ".join(os.path.basename(x) for x in srcs)
+        for line in (l for x in srcs for l in zopen(x)):
             if line.startswith("#"):
                 continue
             c = line.rstrip("\n").split("\t")

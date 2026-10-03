@@ -10,11 +10,11 @@ R3  v2_genes vs v3_genes                   genes mode: fragments, bigwig correla
 """
 import os
 import re
+import subprocess
 import sys
 
 import numpy as np
 import pandas as pd
-import pyBigWig
 
 V = sys.argv[1]
 R = os.path.join(V, "runs")
@@ -95,11 +95,15 @@ def norm_cmds(run, s):
 
 
 log("# T1 validation comparisons\n")
-r0 = compare_repeats("v2_repeats_A", "v2_repeats_B", "R0 v2 vs v2")
-r1 = compare_repeats("v2_repeats_A", "v3_repeats_legacy", "R1 v2 vs v3-legacy-trim")
-r2 = compare_repeats("v3_repeats_legacy", "v3_repeats", "R2 v3 legacy vs new trim")
-allrep = pd.concat([r0, r1, r2])
-allrep.to_csv(os.path.join(OUT, "repeats_R0_R1_R2.tsv"), sep="\t", index=False)
+rep_tsv = os.path.join(OUT, "repeats_R0_R1_R2.tsv")
+if os.path.exists(rep_tsv):
+    allrep = pd.read_csv(rep_tsv, sep="\t")
+else:
+    r0 = compare_repeats("v2_repeats_A", "v2_repeats_B", "R0 v2 vs v2")
+    r1 = compare_repeats("v2_repeats_A", "v3_repeats_legacy", "R1 v2 vs v3-legacy-trim")
+    r2 = compare_repeats("v3_repeats_legacy", "v3_repeats", "R2 v3 legacy vs new trim")
+    allrep = pd.concat([r0, r1, r2])
+    allrep.to_csv(rep_tsv, sep="\t", index=False)
 cols = ["comparison", "sample", "level", "total_rel_diff_pct", "n_abs_log2fc_gt_0.1", "max_abs_log2fc", "pearson_log"]
 log("## Repeats mode (featureCounts family/element, IAP)\n")
 log(allrep[cols].to_string(index=False))
@@ -131,17 +135,15 @@ for s in names:
     bw2 = os.path.join(sdir("v2_genes", s), "aligned_" + b.get("Genome", "mm10"), s + (".bw" if b.get("Protocol") == "RNA" else ".dedup.unique.bw"))
     bw3 = os.path.join(sdir("v3_genes", s), "aligned_" + b.get("Genome", "mm10"), s + (".bw" if b.get("Protocol") == "RNA" else ".filt.bw"))
     if os.path.exists(bw2) and os.path.exists(bw3):
-        x, y_ = pyBigWig.open(bw2), pyBigWig.open(bw3)
-        va, vb = [], []
-        for c, ln in x.chroms().items():
-            if not re.match(r"^chr([0-9]+|X)$", c) or c not in y_.chroms():
-                continue
-            nb = ln // 1000
-            va += x.stats(c, 0, nb * 1000, nBins=nb, type="mean")
-            vb += y_.stats(c, 0, nb * 1000, nBins=nb, type="mean")
-        va, vb = np.nan_to_num(np.array(va, float)), np.nan_to_num(np.array(vb, float))
-        m = (va > 0) | (vb > 0)
-        row["bigwig_1kb_spearman"] = round(float(pd.Series(va[m]).corr(pd.Series(vb[m]), method="spearman")), 4)
+        npz = os.path.join(OUT, f"bw_{s}.npz")
+        raw = os.path.join(OUT, f"bw_{s}.tsv")
+        if not os.path.exists(raw):
+            subprocess.run(["multiBigwigSummary", "bins", "-b", bw2, bw3, "-bs", "1000", "-p", "8", "-o", npz,
+                            "--outRawCounts", raw, "--chromosomesToSkip", "chrM", "chrY"], check=True)
+        d = pd.read_csv(raw, sep="\t").iloc[:, 3:5].fillna(0)
+        d = d[(d.iloc[:, 0] > 0) | (d.iloc[:, 1] > 0)]
+        row["bigwig_1kb_spearman"] = round(float(d.iloc[:, 0].corr(d.iloc[:, 1], method="spearman")), 4)
+        row["bigwig_1kb_pearson_log"] = round(float(np.corrcoef(np.log1p(d.iloc[:, 0]), np.log1p(d.iloc[:, 1]))[0, 1]), 4)
     rows.append(row)
 r3 = pd.DataFrame(rows)
 r3.to_csv(os.path.join(OUT, "genes_R3.tsv"), sep="\t", index=False)
