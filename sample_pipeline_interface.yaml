@@ -16,19 +16,19 @@ sample_interface:
     --genome {sample.genome}
     --protocol {sample.protocol}
     --pipeline-mode {project.pipeline_mode}
-    {% if sample.genome_config is defined %} --genome-config {sample.genome_config} {% endif %}
-    {% if sample.STAR_RNA_index is defined %} --STAR_RNA_index {sample.STAR_RNA_index} {% endif %}
-    {% if sample.STAR_genome_index is defined %} --STAR_genome_index {sample.STAR_genome_index} {% endif %}
-    {% if sample.Bowtie2_index is defined %} --Bowtie2_index {sample.Bowtie2_index} {% endif %}
-    {% if sample.refgene_tss is defined %} --refgene_tss {sample.refgene_tss} {% endif %}
-    {% if sample.genome_index is defined %} --genome_index {sample.genome_index} {% endif %}
-    {% if sample.repeats_SAF is defined %} --repeats_SAF {sample.repeats_SAF} {% endif %}
-    {% if sample.repeats_SAFid is defined %} --repeats_SAFid {sample.repeats_SAFid} {% endif %}
-    {% if sample.rsem_index is defined %} --rsem-index {sample.rsem_index} {% endif %}
-    {% if sample.strandedness is defined %} --strandedness {sample.strandedness} {% endif %}
-    {% if sample.target is defined %} --target {sample.target} {% endif %}
-    {% if sample.peak_mode is defined %} --peak-mode {sample.peak_mode} {% endif %}
-    {% if sample.legacy_trim is defined %} --legacy-trim {% endif %}
+    {% if sample.genome_config is defined and sample.genome_config %} --genome-config {sample.genome_config} {% endif %}
+    {% if sample.STAR_RNA_index is defined and sample.STAR_RNA_index %} --STAR_RNA_index {sample.STAR_RNA_index} {% endif %}
+    {% if sample.STAR_genome_index is defined and sample.STAR_genome_index %} --STAR_genome_index {sample.STAR_genome_index} {% endif %}
+    {% if sample.Bowtie2_index is defined and sample.Bowtie2_index %} --Bowtie2_index {sample.Bowtie2_index} {% endif %}
+    {% if sample.refgene_tss is defined and sample.refgene_tss %} --refgene_tss {sample.refgene_tss} {% endif %}
+    {% if sample.genome_index is defined and sample.genome_index %} --genome_index {sample.genome_index} {% endif %}
+    {% if sample.repeats_SAF is defined and sample.repeats_SAF %} --repeats_SAF {sample.repeats_SAF} {% endif %}
+    {% if sample.repeats_SAFid is defined and sample.repeats_SAFid %} --repeats_SAFid {sample.repeats_SAFid} {% endif %}
+    {% if sample.rsem_index is defined and sample.rsem_index %} --rsem-index {sample.rsem_index} {% endif %}
+    {% if sample.strandedness is defined and sample.strandedness %} --strandedness {sample.strandedness} {% endif %}
+    {% if sample.target is defined and sample.target %} --target {sample.target} {% endif %}
+    {% if sample.peak_mode is defined and sample.peak_mode %} --peak-mode {sample.peak_mode} {% endif %}
+    {% if sample.legacy_trim is defined and sample.legacy_trim %} --legacy-trim {% endif %}
     --pipestat-config {pipestat.config_file}
 
 compute:

@@ -1,0 +1,19 @@
+# mhaESC v1.1 + mT2T-Y v1.0 (C57BL/6-derived T2T mouse); chrY PAR hard-masked; Liftoff Ensembl + novel genes; RepeatMasker (Dfam)
+# Built by resources/genomes/build_genome.sh (see genomes/mhaESC/PREP_REPORT.txt). No ENCODE blacklist exists for this
+# assembly yet (blacklist: null): filtered BAMs are not blacklist-filtered.
+genome: mhaESC
+fasta: /store24/project24/becgsc_001/genomes/mhaESC/Sequence/WholeGenomeFasta/genome.fa
+fai: /store24/project24/becgsc_001/genomes/mhaESC/Sequence/WholeGenomeFasta/genome.fa.fai
+bowtie2_index: /store24/project24/becgsc_001/genomes/mhaESC/Sequence/Bowtie2Index/genome
+star_genome_index: /store24/project24/becgsc_001/genomes/mhaESC/STARgenome
+star_rna_index: /store24/project24/becgsc_001/genomes/mhaESC/STAR
+rsem_index: /store24/project24/becgsc_001/genomes/mhaESC/RSEM/RSEM
+repeats_saf: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/rmsk.mhaESC.SAF
+repeats_safid: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/rmsk.ids.mhaESC.SAF
+tss_bed: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/mhaESC_TSS.bed
+blacklist: null
+mito: chrM
+canonical: "chr([0-9]+|X|Y)"
+macs_gsize: mm
+iap_plus_bed: null
+iap_minus_bed: null

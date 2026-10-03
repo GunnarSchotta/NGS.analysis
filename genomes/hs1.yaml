@@ -1,0 +1,19 @@
+# T2T-CHM13v2.0 analysis set (PAR-masked chrY, rCRS chrM); CAT/Liftoff GENCODE v35; UCSC hs1 RepeatMasker
+# Built by resources/genomes/build_genome.sh (see genomes/hs1/PREP_REPORT.txt). No ENCODE blacklist exists for this
+# assembly yet (blacklist: null): filtered BAMs are not blacklist-filtered.
+genome: hs1
+fasta: /store24/project24/becgsc_001/genomes/hs1/Sequence/WholeGenomeFasta/genome.fa
+fai: /store24/project24/becgsc_001/genomes/hs1/Sequence/WholeGenomeFasta/genome.fa.fai
+bowtie2_index: /store24/project24/becgsc_001/genomes/hs1/Sequence/Bowtie2Index/genome
+star_genome_index: /store24/project24/becgsc_001/genomes/hs1/STARgenome
+star_rna_index: /store24/project24/becgsc_001/genomes/hs1/STAR
+rsem_index: /store24/project24/becgsc_001/genomes/hs1/RSEM/RSEM
+repeats_saf: /store24/project24/becgsc_001/genomes/hs1/Annotation/Genes/rmsk.hs1.SAF
+repeats_safid: /store24/project24/becgsc_001/genomes/hs1/Annotation/Genes/rmsk.ids.hs1.SAF
+tss_bed: /store24/project24/becgsc_001/genomes/hs1/Annotation/Genes/hs1_TSS.bed
+blacklist: null
+mito: chrM
+canonical: "chr([0-9]+|X|Y)"
+macs_gsize: hs
+iap_plus_bed: null
+iap_minus_bed: null

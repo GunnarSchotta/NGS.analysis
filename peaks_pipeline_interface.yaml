@@ -1,0 +1,27 @@
+# NGS.peaks (v3): peak calling vs control. NOT listed in the project's .looper.yaml (looper would start it together
+# with the main pipeline). Run after the main run:
+#   looper run -p slurm -c .looper.peaks.yaml   (a copy of .looper.yaml whose pipeline_interfaces lists only
+#   <v3>/peaks_pipeline_interface.yaml; --spi does not override .looper.yaml)
+pipeline_name: NGS.peaks
+output_schema: pipestat_peaks_results_schema.yaml
+
+sample_interface:
+  command_template: >
+    /store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin/python3 {looper.piface_dir}/NGS.peaks.py
+    --output-parent {looper.output_dir}/samples
+    --cores {compute.cores}
+    --sample-name {sample.sample_name}
+    --genome {sample.genome}
+    --pipeline-mode {project.pipeline_mode}
+    --single-or-paired {sample.read_type}
+    {% if sample.genome_config is defined and sample.genome_config %} --genome-config {sample.genome_config} {% endif %}
+    {% if sample.control is defined and sample.control %} --control {sample.control} {% endif %}
+    {% if sample.target is defined and sample.target %} --target {sample.target} {% endif %}
+    {% if sample.peak_mode is defined and sample.peak_mode %} --peak-mode {sample.peak_mode} {% endif %}
+    --pipestat-config {pipestat.config_file}
+
+compute:
+  partition: slim16
+  time: '06:00:00'
+  cores: '4'
+  mem: '16000'

@@ -1,0 +1,35 @@
+# NGS.peaks (v3): peaks called against a control. Units: docs/stats_units.md
+pipeline_name: "NGS.peaks"
+samples:
+  Control:
+    type: string
+    description: "sample_name of the control (input / IgG)"
+  Peak_mode:
+    type: string
+    description: "MACS3 mode: narrow or broad"
+  Peaks_ctrl_n:
+    type: number
+    description: "Peaks vs control after blacklist removal"
+  FRiP_ctrl_pct:
+    type: number
+    description: "Fragments in control-based peaks / usable fragments [%]"
+  Peaks_ctrl:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "MACS3 peaks vs control, blacklist removed"
+  Time:
+    type: string
+    description: "time"
+  Success:
+    type: string
+    description: "success"
