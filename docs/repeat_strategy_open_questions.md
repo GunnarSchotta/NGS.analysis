@@ -44,7 +44,28 @@ collects what has to be decided first (agreed 2026-10-03).
 - **Deduplication strategy for multimappers:** sequence-level deduplication before alignment, UMIs, or reporting both with and without duplicates.
 - **Read and fragment length:** PE 2×100 vs 2×50/60; the gain of PE for young L1/IAP/MERVL (Teissandier: +10–30% mapping).
 
-## Evidence to collect
+## Evidence collected so far
 
-- The ART simulation benchmark (`benchmark/`): per-family mapping % and true-positive rate for the current settings vs alternatives, on mm10/hg38 vs T2T, with injected SNPs and indels.
+The ART benchmark (`analysis/NGS.analysis.v3.benchmark/README.md`) simulates reads from the reference itself, with no SNPs, so its numbers are an upper bound. In the mm10/hg38 runs of 2026-10-03:
+- **STAR "unique" (MAPQ 255) is not error-free for the youngest L1.**
+  - L1MdT/L1MdA and L1HS: 3–5% (2×100) and 6–7% (2×50) of the unique fragments are at the wrong locus.
+  - IAPEz: 1.4–3%. MMERVK10C, ETnERV, SVA, HERVK, LTR5_Hs: ≤ 0.5%.
+  - Element-level counts for young L1 therefore carry a few percent misassignment even in the best case.
+- **Unique fractions:**
+  - STAR MAPQ 255 keeps 29–82% of young-ERV/L1 fragments (2×100);
+  - bowtie2 MAPQ ≥ 30 keeps 10–47%, at ≥ 99.6% correct locus;
+  - bowtie2 MAPQ ≥ 42 keeps 0.6–9%.
+
+  bowtie2 MAPQ ≥ 30 could serve as an alternative, stricter "unique" definition for element-level counts.
+- **Placement accuracy and read length:**
+  - Of all fragments placed in repeats mode, including random multimapper placement, 94–98% are at the correct locus.
+  - 2×50 roughly halves the unique fraction of young L1/IAP compared with 2×100.
+
+## Evidence still to collect
+
+- **ART benchmark:**
+  - T2T references (hs1, mhaESC);
+  - injected SNPs and indels (strain divergence);
+  - family-level (not only locus-level) correctness of random placement;
+  - alternatives (bowtie2 `-k`, Allo, EM).
 - Real data: Setdb1 KO RNA-seq and H3K9me3 ChIP (01.Angela), comparing family- and element-level results between strategies.

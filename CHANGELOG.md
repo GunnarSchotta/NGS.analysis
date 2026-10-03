@@ -46,8 +46,13 @@
 - **MACS3 inside the pipeline** (no control): narrow/broad from `peak_mode`, `auto` from `target`.
 - **New `NGS.peaks.py` + `peaks_pipeline_interface.yaml`:** peaks against the `control` sample, run after the main run.
 
+### Benchmark and validation
+- `benchmark/`: ART simulation (2×100, 2×50) and an adapter read-through set; `summarize.py` writes the summary tables.
+  Results and conclusions: `analysis/NGS.analysis.v3.benchmark/README.md`.
+- `tests/`: T1 (200k-fragment smoke tests, v2 vs v3) and T2 (full-depth runs; Edenhofer ATAC vs `02.retrim.cutadapt`).
+
 ### Framework
-- **Genome resources** in `genomes/<genome>.yaml` instead of per-project path lists. New T2T assemblies: hs1 (T2T-CHM13v2.0) and mhaESC (T2T mouse with chrY, PAR masked).
+- **Genome resources** in `genomes/<genome>.yaml` instead of per-project path lists. New T2T assemblies: hs1 (T2T-CHM13v2.0) and mhaESC (mhaESC v1.1 + mT2T-Y v1.1, release 2026-01-29, with chrY genes and RepeatMasker; the chrY PAR is detected and hard-masked, the telomere-only chrY end is not). Build scripts in `resources/genomes/`.
 - **Full pipestat schema** for every sample. The v2 protocol-filtered schema made pipestat reject keys reported in repeats mode.
 - **Project schema fixed:**
   - `projects:` → `project:`, which pipestat requires. Hidden in v2 because the collator used the cached sample schema.
