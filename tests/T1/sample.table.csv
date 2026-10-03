@@ -1,0 +1,9 @@
+sample_name,study,cell_type,target,genotype,batch,protocol,organism,fastq1,fastq2,read_type,read1,read2
+chip_K9,T1,ESC,H3K9me3,wt,1,CHIP,mouse,chip_K9_R1.fastq.gz,chip_K9_R2.fastq.gz,paired,R1,R2
+input_ES,T1,ESC,none,wt,1,CHIP,mouse,input_ES_R1.fastq.gz,input_ES_R2.fastq.gz,paired,R1,R2
+atac_mm,T1,ESC,none,wt,1,ATAC,mouse,atac_mm_R1.fastq.gz,atac_mm_R2.fastq.gz,paired,R1,R2
+cr_gata6,T1,iXEN,Gata6,wt,1,CR,mouse,cr_gata6_R1.fastq.gz,cr_gata6_R2.fastq.gz,paired,R1,R2
+ct_k27ac,T1,iXEN,H3K27ac,wt,1,CT,mouse,ct_k27ac_R1.fastq.gz,ct_k27ac_R2.fastq.gz,paired,R1,R2
+chip_se,T1,ESC,H3K9me3,wt,1,CHIP,mouse,chip_se_R1.fastq.gz,none,single,R1,R2
+rna,T1,ESC,none,wt,1,RNA,mouse,rna_R1.fastq.gz,rna_R2.fastq.gz,paired,R1,R2
+atac_hs,T1,eNSPC,none,wt,1,ATAC,human,atac_hs_R1.fastq.gz,atac_hs_R2.fastq.gz,paired,R1,R2

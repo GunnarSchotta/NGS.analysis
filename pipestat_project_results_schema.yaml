@@ -1,6 +1,34 @@
-pipeline_name: "NGS.analysis"
+pipeline_name: "NGS.analysis.project"
 
-projects:
+project:
+  files_table_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Per-sample output files table (absolute paths)."
+  bam_files_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "BAM files per sample."
   stat_summary_file:
     type: object
     object_type: file

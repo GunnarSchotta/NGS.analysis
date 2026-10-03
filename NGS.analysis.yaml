@@ -1,34 +1,20 @@
-# PEPATAC configuration file for an ATACseq pipeline based on pypiper
-
-# basic tools
-# public tools
-tools:  # absolute paths to required tools
+# NGS.analysis v3 tool configuration (pypiper). Bare names resolve in the ngs.v3 environment: the pipeline puts
+# the directory of its python interpreter first on PATH.
+tools:
   java: java
   python: python
   samtools: samtools
   bedtools: bedtools
   bowtie2: bowtie2
+  STAR: STAR
+  rsem: rsem-calculate-expression
   fastqc: fastqc
   featureCounts: featureCounts
-  # ucsc tools
-#  wigToBigWig: wigToBigWig
-#  bigWigCat: bigWigCat
-#  bedToBigBed: bedToBigBed
-  # optional tools
   trimmomatic: trimmomatic
   picard: picard
   bamcoverage: bamCoverage
-#  pigz: pigz
+  macs3: macs3
   Rscript: Rscript
-#  bigWigMerge: bigWigMerge
-#  bedGraphToBigWig: bedGraphToBigWig
 
-
-# user configure
 resources: {}
-
-parameters:  # parameters passed to bioinformatic tools, subclassed by tool
-# Adjust/Add/Remove parameters for individual tools here
-  java_settings:
-    params: ''
-    # Can modify java settings in this manner. e.g. -Xms1g -Xmx7g. Default is no modifications.
+parameters: {}

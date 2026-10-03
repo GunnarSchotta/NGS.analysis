@@ -5,7 +5,8 @@ NGS Analysis Collator - project-level pipeline
 
 __author__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "2.0.0"
+__version__ = "3.0.0"
+PIPELINE_NAME = "NGS.analysis.project"  # distinct from the sample pipeline (separate schema/flags)
 
 from argparse import ArgumentParser
 import os
@@ -17,6 +18,8 @@ import pypiper
 from ubiquerg import VersionInHelpParser
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+# tools come from the environment of this interpreter (no reliance on an activated env)
+os.environ["PATH"] = os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", "")
 
 def tool_path(tool_name: str) -> str:
     """Return absolute path to a tool next to this script."""
@@ -72,6 +75,16 @@ def collect_project_results(project_name: str, summary_dir: str) -> dict[str, di
         "stat_summary_file": (
             os.path.join(summary_path, f"{project_name}_stats_summary.tsv"),
             "Statistics summary file",
+            "file",
+        ),
+        "files_table_file": (
+            os.path.join(summary_path, f"{project_name}_files.tsv"),
+            "Per-sample output files (absolute paths)",
+            "file",
+        ),
+        "bam_files_file": (
+            os.path.join(summary_path, f"{project_name}_BAM_files.tsv"),
+            "BAM files per sample",
             "file",
         ),
         "feature_counts_file": (
@@ -176,15 +189,16 @@ def main():
         with open(args.pipestat_config) as _f:
             _cfg = yaml.safe_load(_f) or {}
         _cfg["results_file_path"] = os.path.join(outfolder, "stats.yaml")
+        # always the project schema next to this script (the looper-cached schema_path can be stale)
+        _cfg["schema_path"] = tool_path("pipestat_project_results_schema.yaml")
         _resolved = os.path.join(outfolder, "pipestat_config.yaml")
         with open(_resolved, "w") as _f:
             yaml.dump(_cfg, _f)
         args.pipestat_config = _resolved
 
-    # IMPORTANT: use the unified pipeline name to match your interfaces/schemas
-    with _skip_duplicate_pypiper_file_handler(os.path.join(outfolder, "NGS.analysis_log.md")):
+    with _skip_duplicate_pypiper_file_handler(os.path.join(outfolder, PIPELINE_NAME + "_log.md")):
         pm = pypiper.PipelineManager(
-            name="NGS.analysis",
+            name=PIPELINE_NAME,
             outfolder=outfolder,
             pipestat_record_identifier=project_record_id,
             pipestat_pipeline_type="project",

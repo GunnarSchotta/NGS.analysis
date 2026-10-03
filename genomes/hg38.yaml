@@ -1,0 +1,16 @@
+genome: hg38
+fasta: /store24/project24/becgsc_001/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa
+fai: /store24/project24/becgsc_001/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa.fai
+bowtie2_index: /store24/project24/becgsc_001/genomes/hg38/Sequence/Bowtie2Index/genome
+star_genome_index: /store24/project24/becgsc_001/genomes/hg38/STARgenome
+star_rna_index: /store24/project24/becgsc_001/genomes/hg38/STAR
+rsem_index: /store24/project24/becgsc_001/genomes/hg38/RSEM/RSEM
+repeats_saf: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.hg38.291122.SAF
+repeats_safid: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/rmsk.ids.hg38.291122.SAF
+tss_bed: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/hg38_TSS.bed
+blacklist: /store24/project24/becgsc_001/genomes/hg38/GRCh38_unified_blacklist.bed
+mito: chrM
+canonical: "chr([0-9]+|X|Y)"
+macs_gsize: hs
+iap_plus_bed: null
+iap_minus_bed: null

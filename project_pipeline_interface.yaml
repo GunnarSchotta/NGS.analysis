@@ -1,4 +1,5 @@
-pipeline_name: NGS.analysis
+# NGS.analysis v3 project pipeline (collation). Own pipeline_name -> own schema, flags and record.
+pipeline_name: NGS.analysis.project
 output_schema: pipestat_project_results_schema.yaml
 
 project_interface:
@@ -6,7 +7,7 @@ project_interface:
     project_name: "{project.name}"
     record_identifier: "{project.name}"
   command_template: >
-    python /store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/NGS.analysis.collator.py
+    /store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin/python3 {looper.piface_dir}/NGS.analysis.collator.py
     --config {looper.pep_config}
     -O {looper.output_dir}
     -P {compute.cores}
@@ -15,9 +16,8 @@ project_interface:
     -r {looper.output_dir}/samples
     --pipestat-config {pipestat.config_file}
 
-# Submission resources for the project job (SLURM)
 compute:
   mem: 20G
-  cores: 32
-  partition: slim18
-  time: 01:00:00
+  cores: 8
+  partition: slim16
+  time: 02:00:00

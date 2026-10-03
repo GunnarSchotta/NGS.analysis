@@ -122,13 +122,44 @@ def resolve_results_dir(looper_dir: Path, args: argparse.Namespace) -> Path:
 
 
 def infer_pipeline_name(results_dir: Path, override: str | None) -> str:
+    """Sample pipeline name. v3: the project pipeline is '<name>.project' and is never chosen here."""
     if override:
         return override
+    names = []
     for stats_path in sorted(results_dir.rglob("stats.yaml")):
         data = load_yaml_file(stats_path)
         if data:
-            return next(iter(data.keys()))
+            names.append(next(iter(data.keys())))
+    for n in names:
+        if not n.endswith(".project"):
+            return n
+    if names:
+        return names[0]
     raise SystemExit(f"Could not infer pipeline name from stats files in {results_dir}")
+
+
+def _load_units() -> dict[str, str]:
+    """Units from the '[...]' suffix of the schema descriptions next to this script (v3 schema)."""
+    schema = Path(__file__).resolve().parent / "pipestat_results_schema.yaml"
+    units: dict[str, str] = {}
+    try:
+        import yaml as _yaml
+        samples = (_yaml.safe_load(schema.read_text()) or {}).get("samples", {})
+    except Exception:
+        return units
+    for key, spec in samples.items():
+        m = re.search(r"\[([^\]]+)\]\s*$", str(spec.get("description", "")))
+        if m:
+            units[key] = m.group(1).split(":")[0].split(" (")[0].strip()
+    return units
+
+
+UNITS = _load_units()
+
+
+def column_title(name: str) -> str:
+    unit = UNITS.get(name)
+    return human_title(name) + (f" [{unit}]" if unit else "")
 
 
 def discover_statuses(flags_dir: Path, pipeline_name: str) -> dict[str, str]:
@@ -141,19 +172,24 @@ def discover_statuses(flags_dir: Path, pipeline_name: str) -> dict[str, str]:
             pipeline=re.escape(pipeline_name), statuses=status_group
         )
     )
-    for flag_path in flags_dir.iterdir():
+    newest: dict[str, float] = {}
+    for flag_path in flags_dir.iterdir():   # several flags per record (e.g. stale 'failed' + 'completed'): newest wins
         match = pattern.match(flag_path.name)
         if match:
-            statuses[match.group("record")] = match.group("status")
+            rec, mtime = match.group("record"), flag_path.stat().st_mtime
+            if rec not in newest or mtime > newest[rec]:
+                newest[rec] = mtime
+                statuses[rec] = match.group("status")
     return statuses
 
 
 def read_stats_file(path: Path, pipeline_name: str) -> tuple[dict[str, dict], dict[str, dict]]:
     data = load_yaml_file(path)
     pipeline_data = data.get(pipeline_name, {}) or {}
+    project_data = data.get(pipeline_name + ".project", {}) or {}   # v3: separate project pipeline name
     return (
         pipeline_data.get("sample", {}) or {},
-        pipeline_data.get("project", {}) or {},
+        {**(pipeline_data.get("project", {}) or {}), **(project_data.get("project", {}) or {})},
     )
 
 
@@ -338,7 +374,7 @@ def render_project_section(results_dir: Path, pipeline_name: str, project_record
         figures, links = object_entries(objects, page_dir, results_dir)
         log_href = find_log_link(results_dir, record_name, pipeline_name, page_dir)
         scalar_rows = [
-            f"<tr><th>{html.escape(human_title(key))}</th><td>{html.escape(str(value))}</td></tr>"
+            f"<tr><th>{html.escape(column_title(key))}</th><td>{html.escape(str(value))}</td></tr>"
             for key, value in scalars.items()
         ]
         figure_html = "".join(
@@ -386,7 +422,7 @@ def render_sample_page(
     figures, links = object_entries(sample_objects, page_dir, results_dir)
     log_href = find_log_link(results_dir, sample_name, pipeline_name, page_dir)
     scalar_rows = "".join(
-        f"<tr><th>{html.escape(human_title(key))}</th><td>{html.escape(str(value))}</td></tr>"
+        f"<tr><th>{html.escape(column_title(key))}</th><td>{html.escape(str(value))}</td></tr>"
         for key, value in sample_scalars.items()
     )
     nav_links = ['<a href="../report.html">Main report</a>']
@@ -573,7 +609,7 @@ def render_main_page(
     sample_count = len(sample_names)
     columns = [key for key in collect_sample_columns(sample_scalars) if key != "meta"]
     numeric_columns = collect_numeric_columns(sample_scalars)
-    headers = "".join(f"<th>{html.escape(human_title(column))}</th>" for column in columns)
+    headers = "".join(f"<th>{html.escape(column_title(column))}</th>" for column in columns)
     rows = []
     for sample_name in sample_names:
         row = [
@@ -605,7 +641,7 @@ def render_main_page(
     metric_options = "".join(
         (
             f'<button type="button" class="metric-item{" active" if index == 0 else ""}" '
-            f'data-metric="{html.escape(column)}">{html.escape(human_title(column))}</button>'
+            f'data-metric="{html.escape(column)}">{html.escape(column_title(column))}</button>'
         )
         for index, column in enumerate(numeric_columns)
     )

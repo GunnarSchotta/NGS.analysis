@@ -1,9 +1,11 @@
+# NGS.analysis v3 sample pipeline. Scripts are located relative to this file ({looper.piface_dir});
+# the interpreter is the ngs.v3 environment (all tools are taken from the same environment).
 pipeline_name: NGS.analysis
 output_schema: pipestat_results_schema.yaml
 
 sample_interface:
   command_template: >
-    python /store24/project24/becgsc_001/dev/NGS.analysis.office/NGS.analysis/NGS.analysis.py
+    /store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin/python3 {looper.piface_dir}/NGS.analysis.py
     --output-parent {looper.output_dir}/samples
     --cores {compute.cores}
     --mem {compute.mem}
@@ -14,19 +16,23 @@ sample_interface:
     --genome {sample.genome}
     --protocol {sample.protocol}
     --pipeline-mode {project.pipeline_mode}
-    --STAR_RNA_index {sample.STAR_RNA_index}
-    --STAR_genome_index {sample.STAR_genome_index}
-    --Bowtie2_index {sample.Bowtie2_index}
-    --refgene_tss {sample.refgene_tss}
-    --genome_index {sample.genome_index}
-    --repeats_SAF {sample.repeats_SAF}
-    --repeats_SAFid {sample.repeats_SAFid}
+    {% if sample.genome_config is defined %} --genome-config {sample.genome_config} {% endif %}
+    {% if sample.STAR_RNA_index is defined %} --STAR_RNA_index {sample.STAR_RNA_index} {% endif %}
+    {% if sample.STAR_genome_index is defined %} --STAR_genome_index {sample.STAR_genome_index} {% endif %}
+    {% if sample.Bowtie2_index is defined %} --Bowtie2_index {sample.Bowtie2_index} {% endif %}
+    {% if sample.refgene_tss is defined %} --refgene_tss {sample.refgene_tss} {% endif %}
+    {% if sample.genome_index is defined %} --genome_index {sample.genome_index} {% endif %}
+    {% if sample.repeats_SAF is defined %} --repeats_SAF {sample.repeats_SAF} {% endif %}
+    {% if sample.repeats_SAFid is defined %} --repeats_SAFid {sample.repeats_SAFid} {% endif %}
     {% if sample.rsem_index is defined %} --rsem-index {sample.rsem_index} {% endif %}
     {% if sample.strandedness is defined %} --strandedness {sample.strandedness} {% endif %}
+    {% if sample.target is defined %} --target {sample.target} {% endif %}
+    {% if sample.peak_mode is defined %} --peak-mode {sample.peak_mode} {% endif %}
+    {% if sample.legacy_trim is defined %} --legacy-trim {% endif %}
     --pipestat-config {pipestat.config_file}
-  
+
 compute:
-  partition: slim18
+  partition: slim16
   time: '01-00:00:00'
   cores: '16'
-  mem: '150000'
+  mem: '64000'

@@ -1,260 +1,387 @@
-pipeline_name: "NGS.analysis"
-
+# NGS.analysis v3 sample-level results. Units: see docs/stats_units.md (counts in fragments, % on 0-100).
+pipeline_name: NGS.analysis
 samples:
   File_mb:
     type: number
-    description: "size of file"
-  Read_type:
-    type: string
-    description: "read_type"
-  Genome:
-    type: string
-    description: "e.g. mm10 or hg38"
+    description: Input FASTQ size [MB]
   Raw_reads:
     type: string
-    description: "raw reads"
+    description: 'Raw reads from pypiper check_fastq [READS: PE counts both mates]'
   Fastq_reads:
     type: number
-    description: "fastq_reads"
-  Trimmed_reads:
+    description: 'FASTQ reads after merge/conversion (pypiper) [READS: PE counts both mates]'
+  PF_reads:
+    type: string
+    description: Pass-filter reads (pypiper, BAM input only) [READS]
+  Trim_input_fragments:
     type: number
-    description: "trimmed_reads"
-  Trim_loss_rate:
+    description: 'Input to Trimmomatic [fragments (PE: read pairs; SE: reads)]'
+  Trimmed_fragments:
     type: number
-    description: "trimmed loss rate"
-  Input_reads:
+    description: 'Surviving trimming (PE: both mates) [fragments (PE: read pairs; SE: reads)]'
+  Trim_R1_only_fragments:
     type: number
-    description: "input_reads"
-  Unique_reads:
+    description: 'PE only: only R1 survived (not aligned) [pairs]'
+  Trim_R2_only_fragments:
     type: number
-    description: "unique_reads"
-  Multimapped_reads:
+    description: 'PE only: only R2 survived (not aligned) [pairs]'
+  Trim_dropped_fragments:
     type: number
-    description: "multimapped_reads"
-  Multimapped_too_many_loci_reads:
+    description: 'Dropped by Trimmomatic [fragments (PE: read pairs; SE: reads)]'
+  Trimmed_pct:
     type: number
-    description: "mapped_reads to too many loci"
-  Mapped_reads:
+    description: Trimmed_fragments / Trim_input_fragments [%]
+  Aligned_fragments:
     type: number
-    description: "mapped_reads"
-  Unmapped_reads:
+    description: 'Aligned (bowtie2: primary R1 mapped; STAR: unique + multi, excl. too-many-loci) [fragments (PE: read pairs; SE: reads)]'
+  Unique_fragments:
     type: number
-    description: "unmapped_reads"
-  Mapping_rate:
+    description: 'Uniquely aligned (bowtie2: MAPQ>=30; STAR: unique) [fragments (PE: read pairs; SE: reads)]'
+  Multimapped_fragments:
     type: number
-    description: "mapping_rate"
-  Unique_Mapping_rate:
+    description: 'STAR only: mapped to multiple loci [fragments (PE: read pairs; SE: reads)]'
+  Too_many_loci_fragments:
     type: number
-    description: "unique mapping rate"
-  Multi_Mapping_rate:
+    description: 'STAR only: too many loci, NOT in the BAM [fragments (PE: read pairs; SE: reads)]'
+  Unmapped_fragments:
     type: number
-    description: "multi mapping rate"
-  Mitochondrial_reads:
+    description: 'STAR only: input - aligned [fragments (PE: read pairs; SE: reads)]'
+  Aligned_proper_pairs:
     type: number
-    description: "number of mitochondrial reads"
-  Mitochondrial_reads_percentage:
+    description: 'bowtie2 PE only: properly paired primary alignments [pairs]'
+  Alignment_pct:
     type: number
-    description: "percentage of mitochondrial reads"
-  Read_pair_duplicates:
+    description: Aligned / input to the aligner (Trimmed_fragments) [%]
+  Unique_pct:
     type: number
-    description: "number of read pair duplicates"
-  Read_pair_optical_duplicates:
+    description: Unique / input to the aligner [%]
+  Multimapped_pct:
     type: number
-    description: "number of read pair optical duplicates"
-  Read_duplicates:
+    description: 'STAR only: multimapped / input [%]'
+  Mito_fragments:
     type: number
-    description: "number of read duplicates"
-  Percent_duplication:
+    description: 'Primary aligned on the mitochondrial chromosome [fragments (PE: read pairs; SE: reads)]'
+  Mito_pct:
     type: number
-    description: "percent duplication"
-  Mapped_reads_filtered:
+    description: Mito_fragments / Aligned_fragments [%]
+  Duplicate_fragments:
     type: number
-    description: "number of mapped reads after filtering"
-  Mapping_rate_filtered:
+    description: 'Picard duplicates [fragments (PE: read pairs; SE: reads)]'
+  Optical_duplicate_fragments:
     type: number
-    description: "mapping rate after filtering"
+    description: Picard optical duplicates, PE [pairs]
+  Duplication_pct:
+    type: number
+    description: Picard PERCENT_DUPLICATION x 100 [%]
+  Filtered_fragments:
+    type: number
+    description: 'In the analysis BAM (genes: .filt.bam; repeats: .dedup.unique.bam, duplicates marked but retained) [fragments (PE: read pairs; SE: reads)]'
+  Filtered_nondup_fragments:
+    type: number
+    description: 'repeats mode: .dedup.unique.bam without duplicates [fragments (PE: read pairs; SE: reads)]'
+  Filtered_pct:
+    type: number
+    description: 'genes mode: Filtered_fragments / Trimmed_fragments [%]'
+  Insert_size_median:
+    type: number
+    description: Median |TLEN| of proper pairs in the analysis BAM [bp]
+  Insert_size_mode:
+    type: number
+    description: Mode |TLEN| [bp]
+  Insert_lt150_pct:
+    type: number
+    description: Fragments < 150 bp [%]
+  Insert_150_300_pct:
+    type: number
+    description: Fragments 150-299 bp [%]
+  Insert_ge300_pct:
+    type: number
+    description: Fragments >= 300 bp [%]
+  NRF:
+    type: number
+    description: Non-redundant fraction (distinct/total positions, unique fragments, before duplicate removal)
+  PBC1:
+    type: number
+    description: PCR bottlenecking coefficient 1 (M1/distinct)
+  PBC2:
+    type: number
+    description: PCR bottlenecking coefficient 2 (M1/M2)
   TSS_score:
     type: number
-    description: "TSS enrichment score"
+    description: TSS enrichment (flank-normalised Tn5 insertion profile, ATAC)
+  Peak_mode:
+    type: string
+    description: 'MACS3 mode used: narrow, broad or none'
+  Peaks_n:
+    type: number
+    description: Peaks after blacklist removal
+  FRiP_pct:
+    type: number
+    description: Fragments in peaks / usable fragments of the analysis BAM [%]
+  Read_type:
+    type: string
+    description: single or paired
+  Genome:
+    type: string
+    description: genome assembly
+  Protocol:
+    type: string
+    description: CHIP, ATAC, CR, CT or RNA
+  Pipeline_mode:
+    type: string
+    description: genes or repeats
+  Pipeline_version:
+    type: string
+    description: NGS.analysis version
   FastQC report r1:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "FastQC report r1"
+    - path
+    - title
+    description: FastQC report r1
   FastQC report r2:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "FastQC report r2"
+    - path
+    - title
+    description: FastQC report r2
   FastQC report trim r1:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "FastQC trim report r1"
+    - path
+    - title
+    description: FastQC report trim r1
   FastQC report trim r2:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "FastQC trim report r2"
+    - path
+    - title
+    description: FastQC report trim r2
   BAM_mapped:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "Mapped BAM file"
+    - path
+    - title
+    description: All alignments, coordinate-sorted (duplicates not marked)
   BAM_dedup_unique:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "Deduplicated unique mapped BAM file"
+    - path
+    - title
+    description: 'repeats mode: unique (MAPQ 255) alignments, duplicates MARKED not removed (v2 definition)'
+  BAM_filtered:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'genes mode chromatin: proper pairs, duplicates removed, MAPQ>=30, canonical chromosomes, no mito, blacklist removed'
   BigWig:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "BigWig file"
+    - path
+    - title
+    description: 'RNA genes mode: RPKM, all alignments'
   BigWig_dedup:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "Deduplicated BigWig file"
+    - path
+    - title
+    description: 'repeats mode: RPKM from .dedup.unique.bam (v2)'
+  BigWig_filtered:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'genes mode chromatin: CPM, fragment-extended, from .filt.bam'
+  BigWig_filtered_nuc:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'CR/CT genes mode: fragments >= 120 bp, CPM'
+  BigWig_filtered_subnuc:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'CR/CT genes mode: fragments < 120 bp, CPM'
   RSEM_genes_results:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "RSEM per-gene results (TPM, FPKM, expected counts)."
+    - path
+    - title
+    description: RSEM per-gene results
   RSEM_isoforms_results:
     type: object
     object_type: file
     properties:
       path:
         type: string
-        description: "Path to the file."
+        description: Path to the file.
       title:
         type: string
-        description: "Title of the file."
+        description: Title of the file.
     required:
-      - path
-      - title
-    description: "RSEM per-isoform results (TPM, FPKM, expected counts)."
+    - path
+    - title
+    description: RSEM per-isoform results
+  Peaks:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: MACS3 peaks, blacklist removed
   TSS enrichment:
     type: object
     object_type: image
     properties:
       path:
         type: string
-        description: "Path to the image."
+        description: Path to the image.
       thumbnail_path:
         type: string
-        description: "Path to the thumbnail."
+        description: Path to the thumbnail.
       title:
         type: string
-        description: "Title of the image."
+        description: Title of the image.
     required:
-      - path
-      - thumbnail_path
-      - title
-    description: "Plots TSS scores for each sample."
+    - path
+    - thumbnail_path
+    - title
+    description: TSS enrichment profile (ATAC)
   Insert size distribution:
     type: object
     object_type: image
     properties:
       path:
         type: string
-        description: "Path to the image."
+        description: Path to the image.
       thumbnail_path:
         type: string
-        description: "Path to the thumbnail."
+        description: Path to the thumbnail.
       title:
         type: string
-        description: "Title of the image."
+        description: Title of the image.
     required:
-      - path
-      - thumbnail_path
-      - title
-    description: "Insert size distribution file."
+    - path
+    - thumbnail_path
+    - title
+    description: Fragment length distribution (PE)
   Time:
     type: string
-    description: "time"
+    description: time
   Success:
     type: string
-    description: "success"
+    description: success

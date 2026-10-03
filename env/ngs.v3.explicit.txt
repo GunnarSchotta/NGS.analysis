@@ -265,6 +265,7 @@ https://conda.anaconda.org/conda-forge/linux-64/xorg-libxrandr-1.5.4-hb9d3cd8_0.
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libxtst-1.2.5-hb9d3cd8_3.conda#7bbe9a0cc0df0ac5f5a8ad6d6a11af2f
 https://conda.anaconda.org/conda-forge/linux-64/openjdk-24.0.2-h5755bd7_0.conda#2cb7cefb4a66a25110b0fa8798cb4887
 https://conda.anaconda.org/bioconda/noarch/fastqc-0.12.1-hdfd78af_0.tar.bz2#c9f6a4b12229f7331f79c9a00dd6e240
+https://conda.anaconda.org/bioconda/linux-64/gffread-0.12.7-h077b44d_6.tar.bz2#98975436470f316f0a0148a186e008c8
 https://conda.anaconda.org/conda-forge/noarch/joblib-1.6.0-pyhcf101f3_0.conda#4ebc70ef1af2e21cdc8edb1bfa1ec28d
 https://conda.anaconda.org/conda-forge/noarch/threadpoolctl-3.7.0-pyhc455866_0.conda#8c05910e780502e362d658f00f5ec10f
 https://conda.anaconda.org/conda-forge/linux-64/scikit-learn-1.9.1-np2py312h91ec553_1.conda#2117db7d37a14155ecb8d8454de6baad
