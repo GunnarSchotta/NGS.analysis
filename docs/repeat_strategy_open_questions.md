@@ -10,6 +10,8 @@ v3 changes only two things here: the upstream trimming fix and correctly labelle
 future revision is the most reliable assignment of reads to **individual repeat copies**. This document
 collects what has to be decided first (agreed 2026-10-03).
 
+Literature for each question (PubMed search 2026-10-03, with DOIs and what each paper means for us): `repeat_literature.md`.
+
 ## Known issues in the current implementation (not fixed on purpose)
 
 1. **Duplicates are not removed** in `.dedup.unique.bam`, its bigwig, the element-level counts or the CR/CT splits. The family-level counts include duplicates as well.

@@ -27,8 +27,10 @@ the shorthands keep peak calling comparable to mm10/hg38 analyses.
 |---|---|---|
 | mm10 | GRCm38 (UCSC) | ENCODE blacklist ENCFF547MET; IAP gag BEDs for repeats mode |
 | hg38 | GRCh38 (UCSC) | GRCh38 unified blacklist |
-| hs1 | T2T-CHM13v2.0 analysis set | PAR-masked chrY, rCRS chrM; CAT/Liftoff GENCODE v35; UCSC hs1 RepeatMasker; no blacklist |
-| mhaESC | mhaESC v1.1 + mT2T-Y v1.1 (C57BL/6 T2T mouse, release 2026-01) | chrY PAR hard-masked by the build; combined gene annotation incl. chrY; RepeatMasker (Dfam names) for all chromosomes incl. chrY (chrY: many cross-species labels for Y amplicon repeats); no blacklist |
+| hs1 | T2T-CHM13v2.0 analysis set (Nurk et al. 2022, Science, doi:10.1126/science.abj6987; chrY: Rhie et al. 2023, Nature, doi:10.1038/s41586-023-06457-y) | PAR-masked chrY, rCRS chrM; CAT/Liftoff GENCODE v35; UCSC hs1 RepeatMasker; no blacklist |
+| mhaESC | mhaESC v1.1 + mT2T-Y v1.1 (C57BL/6 T2T mouse, release 2026-01; Liu et al. 2024, Science, doi:10.1126/science.adq8191; chrY: Li et al. 2026, Science, doi:10.1126/science.aea2249) | chrY PAR hard-masked by the build; combined gene annotation incl. chrY; RepeatMasker (Dfam names) for all chromosomes incl. chrY (chrY: many cross-species labels for Y amplicon repeats); no blacklist |
 
 T2T resources are built with `resources/genomes/build_genome.sh` (sources: `download_t2t_sources.sh`; details in
 `genomes/<g>/PREP_REPORT.txt` in the genome folder).
+
+An independent T2T assembly of C57BL/6J (and CAST/EiJ) exists: Francis et al. 2025, Nat Genet, doi:10.1038/s41588-025-02367-z. It is not built here; whether v3 should use it instead of or in addition to mhaESC is open (see `docs/repeat_literature.md`).
