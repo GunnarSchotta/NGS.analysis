@@ -63,8 +63,10 @@ The ART benchmark (`analysis/NGS.analysis.v3.benchmark/README.md`) simulates rea
 
 ## Evidence still to collect
 
+- **T2T, human (hs1, done):** with reads simulated from the reference itself, hs1 and hg38 give the same young-TE unique fractions and TP rates once satellites are excluded. hs1 adds satellite arrays that are not uniquely mappable.
 - **ART benchmark:**
-  - T2T references (hs1, mhaESC);
+  - a **cross-reference** simulation (reads from hs1 / mhaESC aligned to hg38 / mm10), which would measure the expected real T2T benefit: reads from sequence missing in the old reference being forced onto wrong paralogues;
+  - T2T mouse (mhaESC);
   - injected SNPs and indels (strain divergence);
   - family-level (not only locus-level) correctness of random placement;
   - alternatives (bowtie2 `-k`, Allo, EM).
