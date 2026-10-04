@@ -66,9 +66,13 @@ The ART benchmark (`analysis/NGS.analysis.v3.benchmark/README.md`) simulates rea
 ## Evidence still to collect
 
 - **T2T, human (hs1, done):** with reads simulated from the reference itself, hs1 and hg38 give the same young-TE unique fractions and TP rates once satellites are excluded. hs1 adds satellite arrays that are not uniquely mappable.
+- **T2T, mouse (mhaESC, done):**
+  - Excluding satellites, mhaESC is 2–3 points less uniquely mappable than mm10, at unchanged TP.
+  - Same-named families (IAPEz, MMERVK10C, RLTR10C, B1/B2) behave the same.
+  - Its Dfam annotation splits off the youngest L1 subfamilies; for L1MdTf_I/II and L1MdA_I, about 15% of STAR "unique" fragments are at the wrong copy (2×100).
+  - The choice of reference also fixes the repeat annotation (RepBase vs Dfam names), which changes per-family results.
 - **ART benchmark:**
   - a **cross-reference** simulation (reads from hs1 / mhaESC aligned to hg38 / mm10), which would measure the expected real T2T benefit: reads from sequence missing in the old reference being forced onto wrong paralogues;
-  - T2T mouse (mhaESC);
   - injected SNPs and indels (strain divergence);
   - family-level (not only locus-level) correctness of random placement;
   - alternatives (bowtie2 `-k`, Allo, EM).
