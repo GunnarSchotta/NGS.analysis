@@ -1,197 +1,232 @@
-# CLAUDE.md — Codebase: NGS.analysis v3
+# CLAUDE.md — NGS.analysis v3 development
 
-Conventions for working on this repository. The root `hpc_work/CLAUDE.md`
-(environment, SSH, micromamba envs, SLURM rules, README convention,
-shared-tool rules) still applies in full and is loaded automatically. This
-file only adds what is specific to this codebase or differs from the root
-defaults.
+Conventions for developing NGS.analysis v3. The root `hpc_work/CLAUDE.md`
+(SSH, path mapping, SLURM rules, shared-tool rules) still applies and is
+loaded automatically. This file covers what v3 development needs: where the
+tools and resources are, how to test a change, and which questions are open.
 
-## Project
+## What v3 is
 
-**What this is**: version 3 of the `NGS.analysis` primary-processing
-pipeline (pypiper + looper, submitted to SLURM). It maps and QCs ChIP-seq,
-ATAC-seq, CUT&RUN (`CR`), CUT&Tag (`CT`) and RNA-seq, in `genes` or
-`repeats` mode. `README.md` describes usage, `CHANGELOG.md` lists every
-change from v2.
+Version 3 of the pypiper/looper primary-processing pipeline (ChIP, ATAC,
+CUT&RUN, CUT&Tag, RNA; `genes` or `repeats` mode). Usage is in
+`README.md`, all changes from v2 in `CHANGELOG.md`.
 
-**Goals of v3** (the design constraints behind most decisions):
+- **genes mode** is modernised: v3 trimming, ENCODE-style `.filt.bam`, CPM
+  bigwig, MACS3 peaks, FRiP, NRF/PBC, corrected TSS score.
+- **repeats mode** is v2 plus the trimming fix. This is deliberate:
+  everything else waits for the repeats redesign (see open questions).
+- Statistics are counts in fragments and percentages on a 0–100 scale
+  (`docs/stats_units.md`).
 
-1. **Fix the v2 data-losing bugs**: Trimmomatic palindrome mode without
-   `keepBothReads` dropped read 2 of every fragment shorter than the read
-   length, and `.dedup.unique.bam` still contained duplicates and chrM.
-2. **genes mode is modernised**: ENCODE-style `<s>.filt.bam`, CPM bigwig,
-   MACS3 peaks + FRiP, NRF/PBC, corrected TSS score.
-3. **repeats mode reproduces v2 exactly**, except for the trimming fix.
-   Its known problems are documented in
-   `docs/repeat_strategy_open_questions.md` and **deliberately not fixed**.
-   A future redesign of repeat read assignment is planned but not started.
-4. **Statistics have one unit convention**: counts in fragments (PE pairs,
-   SE reads), percentages 0–100. Every key is defined in
-   `docs/stats_units.md`.
-
-| Version | Code | Branch | Env | Status |
-|---|---|---|---|---|
-| v2 | `/store24/project24/becgsc_001/coding/NGS.analysis/` | `main` | `ngs.v2` | **production**, used by live projects (`01.Angela`, …) |
-| v3 | `/store24/project24/becgsc_001/coding/NGS.analysis.v3/` (this folder) | `v3` | `ngs.v3` | in development / validation |
-
-Both are clones of the same GitHub repo (`GunnarSchotta/NGS.analysis`).
-The root CLAUDE.md's "Primary NGS processing" section still describes v2;
-do not update it to v3 until the user decides v3 replaces v2.
-
-## Data and output locations
-
-| What | Path (HPC) | Status |
+| | v2 (production) | v3 (development) |
 |---|---|---|
-| This codebase | `/store24/project24/becgsc_001/coding/NGS.analysis.v3/` | edit here (with approval, see rules) |
-| v2 code | `/store24/project24/becgsc_001/coding/NGS.analysis/` | **read-only** for v3 work |
-| Validation on real data (T1, T2) | `/store24/project24/becgsc_001/analysis/NGS.analysis.v3.validation/` | write test runs here |
-| Simulation benchmark | `/store24/project24/becgsc_001/analysis/NGS.analysis.v3.benchmark/` | write benchmark runs here |
-| `ngs.v3` env | `/store24/project24/becgsc_001/micromamba/envs/ngs.v3/` | rebuild only via `env/build_ngs.v3.sh` |
-| Genome references | `/store24/project24/becgsc_001/genomes/{mm10,hg38,hs1,mhaESC}/` | shared, read-only except when building a new genome |
+| Code | `coding/NGS.analysis/` (branch `main`) | `coding/NGS.analysis.v3/` (branch `v3`, this folder) |
+| Env | `ngs.v2` | `ngs.v3` |
 
-Test and benchmark outputs never go into the repo (`example/results/` is
-gitignored). The validation and benchmark folders each have a `README.md`
-with question, steps, outputs and results; update them when a run changes
-a conclusion.
+Both are clones of `GunnarSchotta/NGS.analysis`. Never edit v2 or `ngs.v2`
+from here.
 
-The T2 reference for genes mode is the Edenhofer re-processing
-(`analysis/Edenhofer/02.retrim.cutadapt/`). Read it, never write there.
+## Tools: where they are
 
-## Repository layout
+All paths are on the HPC (`/store24/project24/becgsc_001/...`, shortened
+to `.../` below).
 
-```
-NGS.analysis.v3/
-├── NGS.analysis.py                 sample pipeline (pypiper); __version__ here
-├── NGS.analysis.collator.py        project pipeline (looper runp) -> NGS.summarizer.R
-├── NGS.peaks.py                    peaks vs control (separate looper run)
-├── ngs_qc.py, pyTssEnrichment.py   QC helpers (insert size, NRF/PBC, TSS score, plots)
-├── generate_report.py              HTML report from pipestat results
-├── check_project.py                preflight check, run before looper run
-├── NGS.shiny.app.R                 interactive viewer (unchanged from v2)
-├── *_pipeline_interface.yaml       looper interfaces (sample / project / peaks)
-├── pipestat_*_schema.yaml          pipestat result schemas (sample / project / peaks)
-├── NGS.analysis.yaml               pypiper tool config (bare names, resolved in ngs.v3)
-├── genomes/<genome>.yaml           genome resources (indices, SAF, TSS, blacklist, mito, canonical, macs_gsize)
-├── resources/genomes/              build scripts for T2T genome resources
-├── env/                            ngs.v3 build script + pinned package lists
-├── docs/                           stats_units, repeat strategy open questions, repeat literature
-├── tests/                          T1 / T2 validation scripts, test_schema_keys.py
-├── benchmark/                      ART + adapter simulation, evaluate.py, summarize.py
-└── example/                        minimal example project (RNA, mm10)
-```
+**`ngs.v3` env** (`.../micromamba/envs/ngs.v3/bin`): exact copy of `ngs.v2`
+plus MACS3 and gffread. Call by full path or put it first on `PATH`; no
+`micromamba activate`.
 
-## Environment
-
-Everything runs in `ngs.v3` (exact copy of `ngs.v2` — conda, pip and R
-packages — plus MACS3 3.0.4 and gffread):
-
-```bash
-E=/store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin
-export PATH=$E:$PATH          # looper, python3, samtools, bowtie2, STAR, macs3, ...
-```
-
-- The interfaces call `$E/python3` by absolute path and find scripts via
-  `{looper.piface_dir}`. **No other installation paths are hardcoded** in
-  interfaces or pipeline code; keep it that way.
-- `NGS.analysis.py` puts the directory of its python first on `PATH`, so
-  `NGS.analysis.yaml` uses bare tool names.
-- Do not `pip install` / `micromamba install` into `ngs.v3` ad hoc. If a
-  package is needed, change `env/build_ngs.v3.sh` and the pinned lists
-  (`env/ngs.v3.explicit.txt`, `env/ngs.v3.pip.txt`), and ask first.
-  `ngs.v2` is never modified.
-
-## Design invariants
-
-Check a change against these before proposing it:
-
-| Area | Invariant | How it is checked |
+| Tool | Version | Used for |
 |---|---|---|
-| repeats mode | Commands for alignment, filtering, bigwig, IAP coverage and featureCounts identical to v2. Only trimming differs (`--legacy-trim` restores v2 trimming, for validation only) | T1 comparison R1 in `tests/compare_T1.py` (command identity after path normalisation) |
-| Statistics | Counts in fragments, percentages 0–100, unit stated in the schema | `docs/stats_units.md` |
-| pipestat schema | Every key `NGS.analysis.py` reports exists in `pipestat_results_schema.yaml` (pipestat raises `ColumnNotFoundError` otherwise). The full schema applies to every sample, not filtered by protocol | `tests/test_schema_keys.py` |
-| Project pipeline | Own `pipeline_name` (`NGS.analysis.project`) and schema; schema top-level key is `project:` | T1 runs |
-| Genomes | All per-genome paths come from `genomes/<genome>.yaml`; CLI arguments override. A new genome = YAML + row in `genomes/README.md` (+ build script if derived) | `check_project.py` checks the files exist |
-| Version guard | `NGS.analysis.py` refuses an output folder with results from another major version (`NGS.analysis.version` marker). Bump `__version__` and `CHANGELOG.md` together | — |
-| NGS.peaks | Separate interface, never listed in the project's `.looper.yaml` (looper would start it with the main pipeline) | — |
-| Sample names | No name may be a prefix of another at a `_` boundary (pipestat flag glob) | `check_project.py` |
+| Trimmomatic | 0.39 | trimming (all modes) |
+| bowtie2 | 2.5.4 | genes-mode chromatin alignment |
+| STAR | 2.7.11b | repeats mode, RNA |
+| RSEM | (ngs.v2) | RNA quantification |
+| samtools | 1.22.1 | filtering, stats |
+| Picard | 3.4.0 | MarkDuplicates |
+| featureCounts (subread) | 2.1.1 | repeat family / element counts |
+| bamCoverage (deepTools) | (ngs.v2) | bigwigs |
+| MACS3 | 3.0.4 | peaks |
+| gffread | | GFF3 → GTF for genome builds |
+| looper / pipestat / peppy / pypiper | 2.1.1 / 0.13.1 / 0.40.8 / 0.15.1 | framework |
+| python3, Rscript | | pipeline scripts, `NGS.summarizer.R` |
 
-## Validation workflow
+`NGS.analysis.yaml` uses bare tool names: `NGS.analysis.py` puts its own
+python's directory first on `PATH`. The interfaces call
+`.../envs/ngs.v3/bin/python3` and find scripts via `{looper.piface_dir}`.
+Keep pipeline code free of other installation paths.
 
-Any change to pipeline behaviour gets validated before it is called done:
+Changing the env: edit `env/build_ngs.v3.sh` and the pinned lists
+(`env/ngs.v3.explicit.txt`, `env/ngs.v3.pip.txt`, R packages in
+`env/ngs.v3.R_packages_from_v2.txt`) and ask first. No ad-hoc installs.
 
-1. **Static**: `$E/python3 tests/test_schema_keys.py` (login node, seconds).
-2. **T1** (8 samples × 200k fragments, all protocols, PE + SE, mm10 + hg38):
-   `tests/T1/make_v3_runs.sh submit`, then `tests/compare_T1.py <validation>/T1`
-   (via SLURM). R0 = v2 noise floor, R1 = repeats mode must reproduce v2,
-   R2 = trimming effect, R3 = genes mode v2 vs v3.
-3. **T2** (full depth) only when a change can affect real-data results:
-   `tests/T2/make_T2_runs.sh`, `compare_T2_eden.sh` (genes mode vs
-   Edenhofer `02.retrim.cutadapt`), `compare_T2_repeats.py` (repeats mode vs
-   existing v2 outputs in `01.Angela`).
-4. **Benchmark** (`benchmark/run_benchmark.sh <genome>`) only for changes
-   to alignment or trimming settings.
+**Tools outside `ngs.v3`** (used by tests, benchmark or open questions):
 
-`make_v3_runs.sh` deletes and recreates its run folders; do not point it at
-anything other than the validation folder.
+| Tool | Path | Notes |
+|---|---|---|
+| ART (`art_illumina`) | `.../micromamba/envs/art/bin/` | read simulation for `benchmark/` |
+| cutadapt 5.2 | `.../micromamba/envs/bioenv/bin/` | reference trimming (Edenhofer `02.retrim.cutadapt`); not in ngs.v3 |
+| GenMap | `.../micromamba/envs/bioenv/bin/genmap` | mappability; index only for mm10 (`.../genomes/mm10/genmap/index`) |
+| RepeatMasker | `repeatmasker_env` | `-species` broken, see root CLAUDE.md |
+| liftOver | `liftover` env | coordinate conversion between builds |
 
-## Documentation
+**Not installed** (candidates from the open questions, test in a new env
+first): Allo, SmartMap, T3E, Telescope, TEtranscripts/TElocal, SQuIRE,
+SalmonTE, TEspeX.
 
-- `CHANGELOG.md`: every user-visible change (outputs, statistics, defaults,
-  new files) under the current version heading.
-- `README.md`: usage and the "What the pipeline does" table.
-- `docs/stats_units.md`: every new or changed statistic.
-- `docs/repeat_strategy_open_questions.md`: new evidence on repeat
-  assignment goes in "Evidence collected so far"; literature in
-  `docs/repeat_literature.md` (with DOIs).
-- Style of the existing docs: short sentences, plain language, tables for
-  parameter lists, numbers with units.
+## Genome resources
 
-## SLURM template (validation / benchmark jobs)
+The pipeline reads `genomes/<genome>.yaml` (key definitions in
+`genomes/README.md`). Data are in `.../genomes/<genome>/`.
 
-```bash
-#!/bin/bash
-#SBATCH --job-name=ngsv3_jobname
-#SBATCH --partition=slim16
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --time=12:00:00
-#SBATCH --output=/store24/project24/becgsc_001/analysis/NGS.analysis.v3.validation/logs/ngsv3_jobname_%j.out
-#SBATCH --error=/store24/project24/becgsc_001/analysis/NGS.analysis.v3.validation/logs/ngsv3_jobname_%j.err
-set -euo pipefail
-E=/store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin
-export PATH=$E:$PATH
-CODE=/store24/project24/becgsc_001/coding/NGS.analysis.v3
-```
+| Genome | Assembly | Repeat annotation | Blacklist |
+|---|---|---|---|
+| `mm10` | GRCm38 (UCSC) | UCSC RepeatMasker (RepBase names) | ENCFF547MET |
+| `hg38` | GRCh38 (UCSC) | UCSC RepeatMasker | GRCh38 unified |
+| `hs1` | T2T-CHM13v2.0, PAR-masked chrY | UCSC hs1 RepeatMasker | none |
+| `mhaESC` | mhaESC v1.1 + mT2T-Y v1.1 (C57BL/6) | Dfam names, incl. chrY | none |
 
-(Use `.../NGS.analysis.v3.benchmark/logs/` for benchmark jobs.) Pipeline
-jobs themselves are submitted by looper with the `compute:` block of each
-interface (slim16; sample 16 cores / 64 GB / 1 day).
+- T2T builds: `resources/genomes/{download_t2t_sources.sh,prep_t2t.py,build_genome.sh}`.
+  Each genome folder has a `PREP_REPORT.txt`.
+- A new genome needs a YAML, a row in `genomes/README.md` and, if derived,
+  a build script. `check_project.py` checks that the files exist.
+- IAP gag coverage BEDs exist only for mm10 (`gag.{plus,minus}.15k*.bed`).
 
-## Git
+## Testing a change
 
-- Work on branch **`v3`**. Never commit to or merge into `main` without an
-  explicit request: `main` is v2 production.
-- Run git **on the HPC** (`ssh hpc "cd .../coding/NGS.analysis.v3 && git ..."`).
-  The local SSHFS mount reports "dubious ownership", and the push
-  credentials (`github-ngs` SSH alias) only exist there.
-- Commit messages: `v3: <what>` for code, `docs: <what>` for docs only.
+| Step | Command | Where | Output |
+|---|---|---|---|
+| Schema keys | `$E/python3 tests/test_schema_keys.py` | login node | stdout |
+| Preflight | `$E/python3 check_project.py` in a project folder | login node | stdout |
+| T1: 8 samples × 200k fragments, all protocols, PE + SE | `tests/T1/make_v3_runs.sh submit`, then `tests/compare_T1.py <T1 dir>` | SLURM | `analysis/NGS.analysis.v3.validation/T1/` |
+| T2: full depth (Edenhofer ATAC genes mode, 01.Angela repeats mode) | `tests/T2/make_T2_runs.sh`, `compare_T2_eden.sh`, `compare_T2_repeats.py` | SLURM | `.../validation/T2/` |
+| Simulation benchmark | `sbatch benchmark/run_benchmark.sh <genome>`, then `benchmark/summarize.py` | SLURM | `analysis/NGS.analysis.v3.benchmark/` |
 
-## Rules for Claude (codebase additions)
+(`E=/store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin`.)
 
-1. Root rule 10 applies: this is shared software. Get an explicit yes
-   before changing pipeline code, interfaces, schemas or the env. Once
-   approved, commit on `v3`, push to `origin v3` from the HPC and report
-   the commit to the user.
-2. Never edit `coding/NGS.analysis/` (v2) or the `ngs.v2` env.
-3. Do not change repeats-mode commands, even to fix a documented issue in
-   `docs/repeat_strategy_open_questions.md`. Those are decided together in
-   the planned repeats redesign; add findings to that document instead.
-4. Every new reported statistic: schema entry with unit, entry in
-   `docs/stats_units.md`, `tests/test_schema_keys.py` passes.
-5. No hardcoded paths to a user's home or to this checkout in pipeline
-   code; use `{looper.piface_dir}`, `genomes/<genome>.yaml` or arguments.
-6. Run pipelines and tests on the HPC (SLURM for anything beyond
-   seconds), with outputs in `analysis/NGS.analysis.v3.{validation,benchmark}/`.
-7. Update `CHANGELOG.md`, `README.md` and the validation/benchmark
-   READMEs in the same change as the code, not afterwards.
+- T1 comparisons: R0 = v2 vs v2 noise, R1 = v3 repeats mode with
+  `--legacy-trim` must match v2 command for command, R2 = effect of the new
+  trimming, R3 = genes mode v2 vs v3.
+- `make_v3_runs.sh` deletes and recreates its run folders.
+- Results and conclusions are in the `README.md` of the validation and
+  benchmark folders. Update them when a run changes a conclusion.
+- SLURM logs: `.../analysis/NGS.analysis.v3.{validation,benchmark}/logs/`,
+  job names `ngsv3_<name>`, `%j` only (no `%x`).
+
+**Status (2026-10-03):** T1, T2 and the benchmark on all four genomes are
+done. v3 repeats mode reproduces v2 (full-depth family/element r ≥ 0.9998).
+v3 genes mode matches the Edenhofer cutadapt re-processing within 0.3%.
+
+## Open questions for further development
+
+Full lists: `docs/repeat_strategy_open_questions.md` (known issues,
+questions, evidence) and `docs/repeat_literature.md` (papers with DOIs and
+what each means for us). Benchmark numbers:
+`analysis/NGS.analysis.v3.benchmark/README.md`. New evidence goes into
+those files.
+
+### Repeat read assignment (main open topic)
+
+Goal: the most reliable assignment of reads to **individual repeat
+copies**. Repeats mode is frozen until these are decided together.
+
+**Known issues in current repeats mode** (documented, not fixed on
+purpose):
+1. Duplicates are marked but not removed (BAM, bigwig, counts, CR/CT splits).
+2. Duplicate detection is unreliable for multimappers, because the random locus depends on the read name.
+3. featureCounts `-p` without `--countReadPairs` counts mates, so PE counts are about 2× fragments.
+4. Repeat counting is unstranded (`-s 0`), also for stranded RNA.
+5. No `-O`: overlapping RepeatMasker entries become `Unassigned_Ambiguity`.
+6. STAR `--alignMatesGapMax 350` cuts nucleosomal ATAC/CUT&RUN fragments.
+7. RSEM runs on a transcriptome BAM made with `--outSAMmultNmax 1`.
+8. STAR `--alignEndsType EndToEnd`: no soft-clipping of residual adapter.
+9. Short fragments recovered by the v3 trimming add many multimappers.
+10. CR/CT split puts TLEN 0 records in the sub-nucleosomal BAM.
+11. IAP normalisation counts STAR pairs, `bedtools coverage` counts mates.
+
+**Evidence so far** (ART simulation from the reference itself, so an
+upper bound):
+- STAR "unique" (MAPQ 255) is wrong for 3–5% (2×100) and 6–7% (2×50) of
+  young L1 fragments (L1MdT/L1MdA, L1HS); IAPEz 1.4–3%; other young ERVs
+  and SVA ≤ 0.5%.
+- bowtie2 MAPQ ≥ 30 keeps fewer fragments uniquely (10–47% of young
+  ERV/L1) but places ≥ 99.6% correctly: a candidate stricter "unique"
+  definition for element-level counts.
+- Of everything repeats mode places, including random multimapper
+  placement, 94–98% is at the correct locus.
+- 2×50 roughly halves the unique fraction of young L1/IAP compared with 2×100.
+
+**Decisions to make:**
+- **Multimapper allocation**: random-1 (current), fractional 1/n, EM
+  (Telescope, TEtranscripts, SQuIRE, SalmonTE), or signal-aware for
+  chromatin (Allo: CNN, bowtie2 `-k 25`, trained on TF/ATAC and untested
+  on broad marks; SmartMap: Bayesian, PE only). For family-level chromatin
+  counts: T3E-style 1/n weighting with an input background.
+- **Locus-level RNA**: EM tools rank best (Schwarz 2022), but locus-level
+  false positives can outnumber true loci (Savytska 2022), so count filters
+  and ideally TSS evidence are needed. Exonised TE fragments inflate
+  counts (TEspeX).
+- **Deduplication for multimappers**: sequence-level dedup before
+  alignment, UMIs, or report with and without duplicates.
+- **Per-copy mappability**: GenMap for the read/fragment lengths in use
+  (k = 36–150): which families are addressable at element level at all?
+- **Read length**: gain of PE and of 2×100 over 2×50 for young L1/IAP/MERVL.
+
+### Reference genome and annotation
+
+- **hs1 vs hg38**: outside satellites, same unique fractions and accuracy
+  when reads come from the reference itself. hs1 adds unmappable satellite
+  arrays.
+- **mhaESC vs mm10**: outside satellites, mhaESC is 2–3 points less unique
+  at the same accuracy. Its Dfam annotation splits the youngest L1
+  subfamilies; for L1MdTf_I/II and L1MdA_I about 15% of STAR "unique"
+  fragments are at the wrong copy.
+- **Annotation comes with the reference**: RepBase (mm10) and Dfam
+  (mhaESC) family names differ, so per-family results are not portable
+  without a name mapping.
+- **Alternative mouse T2T**: Francis et al. 2025 (C57BL/6J + CAST/EiJ) is
+  not built. Choose mhaESC, Francis, or support both.
+- **Not yet measured**: the cross-reference effect, i.e. reads from
+  sequence missing in hg38/mm10 forced onto wrong paralogues. Needs a
+  simulation from hs1/mhaESC aligned to hg38/mm10.
+
+### Strain background (mouse)
+
+ES lines are often 129 or mixed. SNPs/indels and non-reference TE
+insertions (TEs are 75% of SV bases, Ferraj 2023) push reads onto
+reference paralogues. Options: strain-specific assemblies (Lilue 2018,
+Helmy 2025), masking known polymorphic loci, or at least flagging copies
+in known SVs. Mismatch allowance (`--outFilterMismatchNmax 3`) is part of
+this.
+
+### Benchmark follow-ups
+
+- Cross-reference simulation (above).
+- Injected SNPs and indels (strain divergence).
+- Family-level (not only locus-level) correctness of random placement.
+- Alternative strategies on the ART set: bowtie2 `-k`, Allo, EM.
+- Real data: Setdb1 KO RNA-seq and H3K9me3 ChIP (01.Angela), comparing
+  family- and element-level results between strategies.
+- Ground truth for copy-level claims: one Nanopore pilot (locus-specific
+  methylation, Ewing 2020) before committing to an element-level strategy.
+
+### Smaller open points outside repeats
+
+- Trimmomatic `MINLEN:30` drops < 30 bp fragments that cutadapt `-m 20`
+  keeps (about 0.2% of ATAC fragments, relevant for footprinting).
+- Input normalisation for family-level ChIP counts is not done in any mode.
+
+## Working rules
+
+1. Root rule 10 applies: ask before changing pipeline code, interfaces,
+   schemas or the env. Approved changes are committed on `v3` and pushed
+   from the HPC (`ssh hpc "cd .../coding/NGS.analysis.v3 && git ..."`;
+   the local mount reports "dubious ownership", and the push key is only
+   on the HPC). Never commit to `main`.
+2. A new reported statistic needs a schema entry with its unit, an entry
+   in `docs/stats_units.md`, and `tests/test_schema_keys.py` must pass.
+3. Do not change repeats-mode commands piecemeal. Record findings in
+   `docs/repeat_strategy_open_questions.md` instead.
+4. Test and benchmark outputs go into
+   `analysis/NGS.analysis.v3.{validation,benchmark}/`, never into the repo.
+5. Update `CHANGELOG.md`, `README.md` and the relevant docs in the same
+   change as the code.
