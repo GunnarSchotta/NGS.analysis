@@ -62,6 +62,12 @@ The ART benchmark (`analysis/NGS.analysis.v3.benchmark/README.md`) simulates rea
 - **Placement accuracy and read length:**
   - Of all fragments placed in repeats mode, including random multimapper placement, 94–98% are at the correct locus.
   - 2×50 roughly halves the unique fraction of young L1/IAP compared with 2×100.
+- **Real data, uniqueness rule (01.Angela ATAC, 2×60, 2026-10-07):** STAR MAPQ 255 (`v3rep`) vs bowtie2 MAPQ ≥ 30 (`v3genes`), same trimming, duplicates excluded (`analysis/NGS.analysis.v3.peaks.benchmark/mappability/README.md`).
+  - bowtie2 MAPQ ≥ 30 keeps 97.8% of fragments overall, but only 64% on IAPEz-int, 70% on L1Md_T, 76% on L1Md_A and 77–79% on RLTR10C, MMERVK10C-int and ETnERV-int. L1 and ERVK elements < 5% diverged keep 73–82%; elements > 15% diverged lose nothing.
+  - The Setdb1 KO d6/d0 log2FC per family is unchanged: r = 0.996 across about 1,250 families; IAPEz-int 2.00 vs 2.05 in ES.
+  - Per element it changes: IAPEz-int copies with log2FC > 1 and ≥ 20 fragments drop from 680 to 395 in ES and from 182 to 107 in XEN. The bowtie2 set is almost a subset of the STAR set.
+  - Peaks only found with STAR are enriched on young L1 (11–16% vs 2–4% of shared peaks in ES).
+  - So the uniqueness rule matters for element-level and young-repeat peak results, not for family-level results.
 
 ## Evidence still to collect
 
