@@ -45,7 +45,7 @@ plus MACS3 and gffread. Call by full path or put it first on `PATH`; no
 | Picard | 3.4.0 | MarkDuplicates |
 | featureCounts (subread) | 2.1.1 | repeat family / element counts |
 | bamCoverage (deepTools) | (ngs.v2) | bigwigs |
-| MACS3 | 3.0.4 | peaks |
+| MACS3 | 3.0.5 | peaks |
 | gffread | | GFF3 → GTF for genome builds |
 | looper / pipestat / peppy / pypiper | 2.1.1 / 0.13.1 / 0.40.8 / 0.15.1 | framework |
 | python3, Rscript | | pipeline scripts, `NGS.summarizer.R` |

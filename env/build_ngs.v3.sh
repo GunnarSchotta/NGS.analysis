@@ -6,7 +6,7 @@
 # older conda metadata), so a plain clone is not exact:
 #   1. explicit conda export of ngs.v2 -> new prefix (same builds, from the package cache)
 #   2. pip packages that were pip-installed in ngs.v2, at the same versions, --no-deps
-#   3. MACS3 and gffread (bioconda) with --freeze-installed (gffread: GFF3->GTF for genome resource builds)
+#   3. gffread (bioconda, --freeze-installed; GFF3->GTF for genome resource builds) and MACS3 3.0.5 (see below)
 #   4. R packages installed from within R in ngs.v2 (copied)
 #   5. write env/ngs.v3.explicit.txt and env/ngs.v3.pip.txt (the pinned definition)
 set -euo pipefail
@@ -27,7 +27,10 @@ PIPPKG="divvy==0.6.0 logmuse==0.3.0 looper==2.1.1 piper==0.15.1 pipestat==0.13.1
         pydantic-settings==2.14.0 python-dotenv==1.2.2 ubiquerg==0.9.3 yacman==1.0.0"
 "$V3/bin/python3" -m pip install --no-deps $PIPPKG
 
-"$MM" install -y -p "$V3" -c conda-forge -c bioconda --freeze-installed macs3 gffread
+"$MM" install -y -p "$V3" -c conda-forge -c bioconda --freeze-installed gffread
+# MACS3 3.0.5 (fixes hmmratac IndexError in refine_peaks, MACS #735) needs anndata/zarr/h5py and zlib 1.3.2,
+# so it cannot be installed with --freeze-installed; hold the two pip-pinned looper deps at their versions
+"$MM" install -y -p "$V3" -c conda-forge -c bioconda 'macs3=3.0.5' 'pydantic-settings=2.14.0' 'python-dotenv=1.2.2'
 
 # R packages that were installed from within R in ngs.v2 (install.packages / BiocManager, not conda):
 # (or upgraded there over the conda version); same R 4.5.1 and system libraries -> copy the package folders

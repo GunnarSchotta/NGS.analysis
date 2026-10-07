@@ -65,5 +65,5 @@
   - file paths kept in the stats summary;
   - configurable IGV path mapping (`igv_path_map`).
 - **`generate_report.py`:** units in column headers, newest flag wins, project records read from `NGS.analysis.project`.
-- **Environment:** `ngs.v3` = exact copy of `ngs.v2` (conda + pip + R packages) plus MACS3 and gffread. Interfaces use the environment's python and `{looper.piface_dir}` (no hard-coded installation paths).
+- **Environment:** `ngs.v3` = exact copy of `ngs.v2` (conda + pip + R packages) plus MACS3 3.0.5 (with its anndata/zarr/h5py dependencies; zlib 1.3.1 → 1.3.2) and gffread. 3.0.5 rather than 3.0.4: fixes an `hmmratac` crash in `refine_peaks` (MACS #735) and two `--call-summits` bugs (#747, #748); the pipeline's `callpeak` without `--call-summits` is not affected by these. Interfaces use the environment's python and `{looper.piface_dir}` (no hard-coded installation paths).
 - Removed `NGS.analysis_output_schema.yaml` (stale), `plot.TSS.enrichment.R` and `frag_distribution.R`.

@@ -76,7 +76,7 @@ Use a new `output_dir`.
 ## Installation
 
 The pipeline runs in the `ngs.v3` micromamba environment (`/store24/project24/becgsc_001/micromamba/envs/ngs.v3`).
-- `env/build_ngs.v3.sh` rebuilds it: an exact copy of `ngs.v2` (conda packages, pip packages, R packages) plus MACS3 and gffread.
+- `env/build_ngs.v3.sh` rebuilds it: an exact copy of `ngs.v2` (conda packages, pip packages, R packages) plus MACS3 3.0.5 and gffread.
 - The pinned definitions are `env/ngs.v3.explicit.txt` and `env/ngs.v3.pip.txt`.
 - The interfaces call the environment's python by absolute path and find scripts via `{looper.piface_dir}`, so no paths need to be edited.
 
