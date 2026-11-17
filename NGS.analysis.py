@@ -9,11 +9,13 @@ Modes
   repeats  alignment, filtering, bigwigs, IAP coverage and featureCounts EXACTLY as in v2 (Teissandier 2019
            STAR random-1 multimapper strategy); see docs/repeat_strategy_open_questions.md.
 All modes: Trimmomatic with minAdapterLength 1 + keepBothReads (PE), statistics in fragments (docs/stats_units.md).
+Chromatin (both modes, since 3.1.0): pairs touching the mitochondrial genome are split off straight after alignment,
+so <s>.bam and everything derived from it (duplicates, complexity, peaks, FRiP, bigwigs, counts) is nuclear only.
 """
 
 __author__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 from argparse import ArgumentParser, SUPPRESS
 import os
@@ -71,6 +73,7 @@ parser.add_argument("--se-extend", dest="se_extend", type=int, default=200,
 parser.add_argument("--pipestat-config", dest="pipestat_config", type=str, default=None,
                     help="Looper-generated pipestat config file path.")
 parser.add_argument("--legacy-trim", dest="legacy_trim", action="store_true", help=SUPPRESS)  # v2 trimming (validation only)
+parser.add_argument("--keep-mito", dest="keep_mito", action="store_true", help=SUPPRESS)  # keep chrM in <s>.bam (v2 equivalence test)
 
 args = parser.parse_args()
 args.paired_end = args.single_or_paired.lower() == "paired"
@@ -112,7 +115,7 @@ os.makedirs(outfolder, exist_ok=True)
 _marker = os.path.join(outfolder, "NGS.analysis.version")
 if os.path.exists(_marker):
     _old = open(_marker).read().strip()
-    if _old.split(".")[0] != __version__.split(".")[0]:
+    if _old.split(".")[:2] != __version__.split(".")[:2]:     # major.minor: 3.1 changed <s>.bam (chrM removed)
         sys.exit(f"ERROR: {outfolder} contains results of NGS.analysis {_old}; v{__version__} would silently "
                  f"reuse them (pypiper skips existing targets). Use a new output folder.")
 elif any(os.path.exists(os.path.join(outfolder, f)) for f in ("stats.yaml", "NGS.analysis_log.md")):
@@ -314,10 +317,18 @@ mapping_genome_bam_dedup_unique_idx = prefix + "dedup.unique.bam.bai"
 mapping_genome_bam_dedup_unique_bw = prefix + "dedup.unique.bw"
 filt_bam = prefix + "filt.bam"                                     # genes mode chromatin
 filt_bw = prefix + "filt.bw"
+mito_bam = prefix + MITO + ".bam"                                  # split-off mitochondrial fragments (temporary)
 
 GENES_CHROMATIN = args.pipeline_mode == "genes" and args.protocol != "RNA"
 mapper = "STAR" if (args.pipeline_mode == "repeats" or args.protocol == "RNA") else "Bowtie2"
 UNIQUE_MAPQ = 255 if mapper == "STAR" else 30
+# Chromatin: remove fragments touching chrM straight after alignment (aligned against the full genome, so MAPQ
+# arbitrates nuclear NUMT vs chrM), before <s>.bam is written. Duplication, complexity, peaks, FRiP, bigwigs and
+# counts are then nuclear only. RNA keeps chrM (mitochondrial transcripts are signal).
+SPLIT_MITO = (args.protocol != "RNA" and not args.keep_mito and bool(FAI) and os.path.exists(FAI)
+              and qc.chrom_present(FAI, MITO))
+if SPLIT_MITO:
+    pm.clean_add(mito_bam)
 
 
 def check_alignment():
@@ -333,24 +344,34 @@ def check_alignment():
         report("Unique_pct", round(100 * s["unique"] / s["input"], 2) if s["input"] else 0)
         report("Multimapped_pct", round(100 * s["multi"] / s["input"], 2) if s["input"] else 0)
     else:
+        # bowtie2: counted from the BAMs (with SPLIT_MITO: nuclear <s>.bam + split-off mito BAM)
+        bams = [mapping_genome_bam] + ([mito_bam] if SPLIT_MITO else [])
         trimmed = stat("Trimmed_fragments", int)
-        aligned = qc.count_fragments(SAMTOOLS, mapping_genome_bam, args.paired_end, flags_excl=2308)
-        uniq = qc.count_fragments(SAMTOOLS, mapping_genome_bam, args.paired_end, flags_excl=2308, mapq=30)
+        aligned = sum(qc.count_fragments(SAMTOOLS, b, args.paired_end, flags_excl=2308) for b in bams)
+        uniq = sum(qc.count_fragments(SAMTOOLS, b, args.paired_end, flags_excl=2308, mapq=30) for b in bams)
         report("Aligned_fragments", aligned)
         report("Unique_fragments", uniq)
         report("Alignment_pct", round(100 * aligned / trimmed, 2) if trimmed else 0)
         report("Unique_pct", round(100 * uniq / trimmed, 2) if trimmed else 0)
         if args.paired_end:
-            report("Aligned_proper_pairs", qc.count_fragments(SAMTOOLS, mapping_genome_bam, True,
-                                                              flags_req=2, flags_excl=2308))
-    if FAI and qc.chrom_present(FAI, MITO):
+            report("Aligned_proper_pairs", sum(qc.count_fragments(SAMTOOLS, b, True, flags_req=2, flags_excl=2308)
+                                               for b in bams))
+    if SPLIT_MITO:
+        mito = qc.count_fragments(SAMTOOLS, mito_bam, args.paired_end, flags_excl=2308)
+        report("Mito_filter", "removed")
+        report("Nuclear_fragments", qc.count_fragments(SAMTOOLS, mapping_genome_bam, args.paired_end, flags_excl=2308))
+        report("Mito_fragments", mito)
+        report("Mito_pct", round(100 * mito / aligned, 2) if aligned else 0)
+    elif FAI and qc.chrom_present(FAI, MITO):
         mito = qc.count_fragments(SAMTOOLS, mapping_genome_bam, args.paired_end, flags_excl=2308, region=MITO)
+        report("Mito_filter", "kept")
         report("Mito_fragments", mito)
         report("Mito_pct", round(100 * mito / aligned, 2) if aligned else 0)
 
 
 if args.pipeline_mode == "repeats":
-    # ---- v2 commands, unchanged (Teissandier 2019 strategy; do not edit without the repeat deep-dive) ----
+    # ---- v2 STAR commands, unchanged (Teissandier 2019 strategy; do not edit without the repeat deep-dive).
+    # Only change since v2 (3.1.0): chromatin output passes the chrM split before sorting (--keep-mito: v2 as is) ----
     if args.protocol == "RNA":
         cmd = STAR + " --runThreadN " + str(pm.cores)
         cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
@@ -379,9 +400,13 @@ if args.pipeline_mode == "repeats":
         if args.paired_end:
             cmd += " " + unmap_fq2 + " "
         cmd += " --outFileNamePrefix " + prefix
-    cmd2 = SAMTOOLS + " sort " + mapping_genome_bam_star + " -o " + mapping_genome_bam
+    if SPLIT_MITO:
+        cmd2 = (qc.mito_filter_cmd(SAMTOOLS, MITO, mito_bam, mapping_genome_bam_star) + " | "
+                + SAMTOOLS + " sort -o " + mapping_genome_bam + " -")
+    else:
+        cmd2 = SAMTOOLS + " sort " + mapping_genome_bam_star + " -o " + mapping_genome_bam
     cmd3 = SAMTOOLS + " index " + mapping_genome_bam
-    pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment)
+    pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment, shell=SPLIT_MITO or None)
 elif args.protocol == "RNA":
     cmd = STAR + " --runThreadN " + str(pm.cores)
     cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
@@ -403,6 +428,8 @@ else:
     cmd += " -x " + Bowtie2_index
     cmd += (" -1 " + unmap_fq1 + " -2 " + unmap_fq2) if args.paired_end else (" -U " + unmap_fq1)
     cmd += " 2> " + prefix + "bowtie2.log"
+    if SPLIT_MITO:
+        cmd += " | " + qc.mito_filter_cmd(SAMTOOLS, MITO, mito_bam)
     cmd += " | " + SAMTOOLS + " sort -@ " + str(max(1, pm.cores // 4)) + " -m 2G -T " + tempdir + "/sort -o "
     cmd += mapping_genome_bam + " -"
     cmd2 = SAMTOOLS + " index " + mapping_genome_bam

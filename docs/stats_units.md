@@ -33,14 +33,21 @@ The exceptions are `Raw_reads`, `Fastq_reads` and `PF_reads`. pypiper reports th
     - `Unique_fragments` / `Multimapped_fragments` / `Too_many_loci_fragments` are taken from `Log.final.out`, parsed by key.
     - `Aligned_fragments` = unique + multi.
     - `Unmapped_fragments` = input − aligned.
-- **Mitochondria:** primary aligned fragments on the genome's `mito` chromosome (genome YAML), as a percentage of aligned fragments.
-- **Duplicates:** Picard MarkDuplicates metrics, parsed by header. `Duplication_pct` = Picard `PERCENT_DUPLICATION` × 100.
+- **Mitochondria** (`mito` chromosome from the genome YAML):
+  - **Chromatin (ATAC/CHIP/CR/CT), 3.1+, `Mito_filter: removed`:** every fragment with the read *or* its mate on chrM is split off straight after alignment, before `<s>.bam` is written. The genome index still contains chrM, so MAPQ decides between chrM and nuclear NUMT copies.
+    - `Mito_fragments` = split-off fragments (primary R1 mapped, `-f 64 -F 2308`).
+    - `Nuclear_fragments` = fragments in `<s>.bam` (= `Aligned_fragments` − `Mito_fragments`).
+    - `Aligned_fragments` and the alignment percentages still include chrM (STAR: from `Log.final.out`; bowtie2: `<s>.bam` + split-off BAM).
+  - **RNA, or `--keep-mito`, `Mito_filter: kept`:** chrM stays in `<s>.bam`; `Mito_fragments` = primary R1 mapped on chrM.
+  - `Mito_pct` = `Mito_fragments` / `Aligned_fragments` in both cases.
+  - 3.0 kept chrM for all protocols. Its `Duplication_pct` and NRF/PBC were dominated by the near-saturated chrM reads in ATAC (Vincendeau ATAC: 66% reported vs about 43% nuclear), and repeats-mode peaks/FRiP/bigwigs included chrM.
+- **Duplicates:** Picard MarkDuplicates metrics on `<s>.bam`, parsed by header. `Duplication_pct` = Picard `PERCENT_DUPLICATION` × 100. With `Mito_filter: removed` this is the nuclear duplication rate.
 - **Filtered fragments:** the analysis BAM.
   - **genes mode:** `.filt.bam`. It keeps proper pairs; removes duplicates, MAPQ < 30 reads, non-canonical chromosomes, the mito chromosome and blacklist regions; and drops orphan mates (fixmate). `Filtered_pct` = relative to trimmed fragments.
-  - **repeats mode:** `.dedup.unique.bam`, as in v2: unique (MAPQ 255) alignments, with duplicates **marked but kept**. `Filtered_nondup_fragments` excludes them.
+  - **repeats mode:** `.dedup.unique.bam`, as in v2: unique (MAPQ 255) alignments, with duplicates **marked but kept**. `Filtered_nondup_fragments` excludes them. Chromatin 3.1+: nuclear only.
 - **Insert size:** proper-pair R1 records of the analysis BAM, |TLEN|. Reported as median, mode, and % below 150, 150–299 and ≥ 300 bp. A plot is produced.
 - **Library complexity** (ENCODE):
-  - Computed on uniquely aligned fragments *before* duplicate removal.
+  - Computed on uniquely aligned fragments of `<s>.bam`, *before* duplicate removal (chromatin 3.1+: nuclear only).
   - Fragment key: PE = chromosome, left position, |TLEN|, strand; SE = chromosome, 5′ end, strand.
   - `NRF` = distinct positions / total fragments.
   - `PBC1` = positions seen once / distinct positions.

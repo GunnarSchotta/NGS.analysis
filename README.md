@@ -10,7 +10,7 @@ It is built on [pypiper](http://pypiper.databio.org/en/latest/) and submitted to
 - **`genes`:**
   - chromatin: bowtie2 → ENCODE-style filtered BAM → CPM bigwig, peaks + FRiP, QC;
   - RNA: STAR + RSEM.
-- **`repeats`:** mapping and repeat quantification follow [Teissandier et al. 2019](https://mobilednajournal.biomedcentral.com/articles/10.1186/s13100-019-0192-1). This is unchanged from v2; open questions are in `docs/repeat_strategy_open_questions.md`.
+- **`repeats`:** mapping and repeat quantification follow [Teissandier et al. 2019](https://mobilednajournal.biomedcentral.com/articles/10.1186/s13100-019-0192-1). This is unchanged from v2 except that chromatin samples lose their chrM fragments before `<s>.bam` (3.1). Open questions are in `docs/repeat_strategy_open_questions.md`; the overall development plan is in `docs/roadmap.md`.
   - STAR reports one random locus per multimapper.
   - featureCounts counts at family level (all reads) and element level (unique reads).
   - IAP gag coverage is computed for mm10.
@@ -24,12 +24,13 @@ It is built on [pypiper](http://pypiper.databio.org/en/latest/) and submitted to
 | Trimming (all modes) | Trimmomatic `ILLUMINACLIP:<Nextera or TruSeq>:2:30:10:1:true MINLEN:30` (PE: adapter overhangs clipped down to 1 nt, both reads of short fragments kept); SE: `:2:30:7` | same |
 | Alignment, chromatin | `bowtie2 --very-sensitive -X 2000 --dovetail` | STAR, one random locus per multimapper (v2 settings) |
 | Alignment, RNA | STAR (default multimapping) + RSEM | STAR multimapper settings + RSEM |
-| Duplicates | Picard MarkDuplicates | Picard MarkDuplicates (marked only) |
+| chrM (chromatin, 3.1+) | fragments with the read or mate on chrM are split off before `<s>.bam` is written (aligned against the full genome; `Mito_fragments`/`Mito_pct` reported). RNA keeps chrM | same |
+| Duplicates | Picard MarkDuplicates on `<s>.bam` (chromatin: nuclear only) | Picard MarkDuplicates (marked only) |
 | Analysis BAM | `<s>.filt.bam`: proper pairs, duplicates **removed**, MAPQ ≥ 30, canonical chromosomes, no chrM, blacklist removed, orphan mates removed | `<s>.dedup.unique.bam`: MAPQ 255, duplicates **marked, not removed** (v2) |
 | Bigwig | `<s>.filt.bw` (CPM, fragment-extended); RNA: `<s>.bw` | `<s>.dedup.unique.bw` (RPKM, v2) |
 | CR/CT | `.filt.nuc/.subnuc` BAMs + bigwigs (fragments ≥ / < 120 bp) | `.dedup.unique.nuc/.subnuc` (v2) |
-| QC | insert size, library complexity (NRF/PBC), TSS score (ATAC), mito %, duplication | same, on the repeats BAM |
-| Peaks | MACS3, narrow/broad (`peak_mode`, `auto` from `target`), blacklist-filtered, FRiP | same, on the unique BAM |
+| QC | insert size and TSS score (ATAC) on the analysis BAM; library complexity (NRF/PBC) and duplication on `<s>.bam`; mito % | same (analysis BAM = `.dedup.unique.bam`) |
+| Peaks | MACS3 `--keep-dup all` (duplicates already removed), narrow/broad (`peak_mode`, `auto` from `target`), blacklist-filtered, FRiP | same, on the unique BAM with `--keep-dup 1` (duplicates only marked) |
 | Repeats | – | featureCounts family / element counts, IAP coverage (mm10) |
 
 All statistics are in **fragments** (PE pairs, SE reads), and percentages are on a 0–100 scale. Every key is
@@ -45,6 +46,7 @@ defined in `docs/stats_units.md`.
      - `control`: sample_name of the input/IgG, used by `NGS.peaks`.
    - **Sample names:** don't use spaces or special characters, and don't let one sample name be a prefix of another at a `_` boundary (`A` and `A_rep2`). pipestat's status-flag lookup cannot tell them apart.
    - **Genome:** set by PEP `imply` from `organism` (`genome: mm10 | hg38 | hs1 | mhaESC`). Indices and annotation come from `genomes/<genome>.yaml`; `genomes/README.md` lists what is available.
+     A custom genome (e.g. a reference with a transgene) is used through a per-sample `genome_config` attribute pointing to its own YAML (same keys); it is passed as `--genome-config` and checked by `check_project.py`.
 2. **Preflight check** in the project folder:
    ```
    /store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin/python3 <v3>/check_project.py
@@ -61,8 +63,8 @@ defined in `docs/stats_units.md`.
    looper run -p slurm -c .looper.peaks.yaml
    ```
 
-v3 refuses to write into an output folder that contains v2 results, because pypiper would silently reuse old files.
-Use a new `output_dir`.
+v3 refuses to write into an output folder that contains results of another major.minor version (v2, or 3.0 when
+running 3.1), because pypiper would silently reuse old files. Use a new `output_dir`.
 
 ## Project summary (`results/project/summary/`)
 
@@ -76,7 +78,7 @@ Use a new `output_dir`.
 ## Installation
 
 The pipeline runs in the `ngs.v3` micromamba environment (`/store24/project24/becgsc_001/micromamba/envs/ngs.v3`).
-- `env/build_ngs.v3.sh` rebuilds it: an exact copy of `ngs.v2` (conda packages, pip packages, R packages) plus MACS3 3.0.5 and gffread.
+- `env/build_ngs.v3.sh` rebuilds it: a copy of `ngs.v2` (conda packages, pip packages, R packages) plus MACS3 3.0.5 (with its anndata/zarr/h5py and zlib 1.3.2 dependencies), gffread and Picard 3.5.0.
 - The pinned definitions are `env/ngs.v3.explicit.txt` and `env/ngs.v3.pip.txt`.
 - The interfaces call the environment's python by absolute path and find scripts via `{looper.piface_dir}`, so no paths need to be edited.
 

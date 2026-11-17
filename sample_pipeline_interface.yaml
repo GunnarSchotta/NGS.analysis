@@ -29,6 +29,7 @@ sample_interface:
     {% if sample.target is defined and sample.target %} --target {sample.target} {% endif %}
     {% if sample.peak_mode is defined and sample.peak_mode %} --peak-mode {sample.peak_mode} {% endif %}
     {% if sample.legacy_trim is defined and sample.legacy_trim %} --legacy-trim {% endif %}
+    {% if sample.keep_mito is defined and sample.keep_mito %} --keep-mito {% endif %}
     --pipestat-config {pipestat.config_file}
 
 compute:

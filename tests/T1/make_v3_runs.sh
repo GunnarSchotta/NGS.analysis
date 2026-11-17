@@ -1,5 +1,5 @@
 #!/bin/bash
-# v3 runs on T1: genes (new trimming), repeats with --legacy-trim (R1: must reproduce v2), repeats (R2).
+# v3 runs on T1: genes (new trimming), repeats with --legacy-trim --keep-mito (R1: must reproduce v2), repeats (R2).
 # Usage: make_v3_runs.sh [submit]
 set -euo pipefail
 T=/store24/project24/becgsc_001/coding/NGS.analysis.v3/tests/T1
@@ -9,7 +9,7 @@ LOOPER=/store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin/looper
 for run in v3_genes:genes:no v3_repeats_legacy:repeats:yes v3_repeats:repeats:no; do
   IFS=: read name mode legacy <<< "$run"; R=$V/runs/$name
   rm -rf "$R"; mkdir -p "$R"; cp "$T/sample.table.csv" "$R/"
-  APPEND=""; [ "$legacy" = yes ] && APPEND=$'  append:\n    legacy_trim: "true"'
+  APPEND=""; [ "$legacy" = yes ] && APPEND=$'  append:\n    legacy_trim: "true"\n    keep_mito: "true"'
   cat > "$R/analysis.configuration.yaml" <<YAML
 name: T1_$name
 pep_version: 2.1.0

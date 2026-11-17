@@ -6,7 +6,8 @@ In v3, **repeats mode is unchanged from v2.** It still uses the Teissandier et a
 - featureCounts at family level (all reads) and at element level (unique reads);
 - IAP gag coverage.
 
-v3 changes only two things here: the upstream trimming fix and correctly labelled statistics. The goal of a
+v3.0 changed only two things here: the upstream trimming fix and correctly labelled statistics. v3.1 adds the chrM
+split for chromatin samples (fragments touching chrM are removed before `<s>.bam`; `--keep-mito` restores v2). The goal of a
 future revision is the most reliable assignment of reads to **individual repeat copies**. This document
 collects what has to be decided first (agreed 2026-10-03).
 
@@ -22,15 +23,16 @@ Literature for each question (PubMed search 2026-10-03, with DOIs and what each 
 6. **The STAR mate gap is capped at 350 bp** (`--alignMatesGapMax 350`), which cuts nucleosomal ATAC and CUT&RUN fragments.
 7. **RSEM** runs on the transcriptome BAM produced with `--outSAMmultNmax 1`.
 8. **STAR `--alignEndsType EndToEnd`** gives no soft-clipping, so residual adapter bases (SE, < 12 nt) or protruding mates (`--alignEndsProtrude 0`) prevent alignment.
-9. **Short fragments recovered by the v3 trimming** (30–60 bp) add many multimappers. Their effect on family counts must be measured (validation comparison R2).
+9. **Short fragments recovered by the v3 trimming** (30–60 bp) add multimappers. *Measured 2026-10-07, see evidence below: acceptable, kept.*
 10. **CR/CT split:** records with TLEN 0 go to the sub-nucleosomal BAM.
-11. **IAP normalisation** uses STAR unique + multi + too-many-loci *pairs*, while `bedtools coverage` counts every mate.
+11. **IAP normalisation** uses STAR unique + multi + too-many-loci *pairs*, while `bedtools coverage` counts every mate. Since 3.1 the coverage is nuclear only (chromatin), but the denominator from `Log.final.out` still includes chrM.
+12. **NUMTs under random-1 placement.** A read that maps equally well to chrM and a nuclear NUMT is placed on either copy at random. The 3.1 chrM split removes the chrM-placed half; the NUMT-placed half stays in `<s>.bam` (MAPQ < 255, so not in the unique BAM, but in family-level counts and IAP coverage). Any multimapper strategy (A1) should treat chrM as a competing locus.
 
 ## Questions to settle
 
 - **Theoretical mappability per copy and family** for the read and fragment lengths actually used (genmap, k = 36 to 150). Which families are addressable at element level at all?
 - **Reference choice:**
-  - mm10 vs the T2T mouse (mhaESC + T2T-Y) vs mm39;
+  - mouse: mm10 vs a T2T mouse (mhaESC + T2T-Y, built; Francis et al. 2025 C57BL/6J + CAST/EiJ, not built) vs mm39 (conservative update, not built);
   - hg38 vs T2T-CHM13 (hs1).
   - Young families sit in the regions T2T resolves; does element-level assignment improve?
 - **Strain and individual polymorphisms:**
@@ -68,15 +70,19 @@ The ART benchmark (`analysis/NGS.analysis.v3.benchmark/README.md`) simulates rea
   - Per element it changes: IAPEz-int copies with log2FC > 1 and ≥ 20 fragments drop from 680 to 395 in ES and from 182 to 107 in XEN. The bowtie2 set is almost a subset of the STAR set.
   - Peaks only found with STAR are enriched on young L1 (11–16% vs 2–4% of shared peaks in ES).
   - So the uniqueness rule matters for element-level and young-repeat peak results, not for family-level results.
-
-## Evidence still to collect
-
+- **Real data, short fragments from the v3 trimming (issue 9; 01.Angela ATAC, 2026-10-07,** `analysis/NGS.analysis.v3.peaks.benchmark/trimming/README.md`**):**
+  - Repeat classes gain ×1.17–1.28 fragments vs ×1.36 genome-wide; young ERV/L1 gain least (IAPEz-int ×1.11, L1Md_T ×1.12).
+  - Setdb1 KO d6/d0 log2FC per family: r = 0.998 (ES) and 0.996 (XEN), no family moves by > 0.3. Element log2FC r = 0.98–0.99.
+  - Conclusion: the extra multimappers do not change family-level results; the new trimming stays.
 - **T2T, human (hs1, done):** with reads simulated from the reference itself, hs1 and hg38 give the same young-TE unique fractions and TP rates once satellites are excluded. hs1 adds satellite arrays that are not uniquely mappable.
 - **T2T, mouse (mhaESC, done):**
   - Excluding satellites, mhaESC is 2–3 points less uniquely mappable than mm10, at unchanged TP.
   - Same-named families (IAPEz, MMERVK10C, RLTR10C, B1/B2) behave the same.
   - Its Dfam annotation splits off the youngest L1 subfamilies; for L1MdTf_I/II and L1MdA_I, about 15% of STAR "unique" fragments are at the wrong copy (2×100).
   - The choice of reference also fixes the repeat annotation (RepBase vs Dfam names), which changes per-family results.
+
+## Evidence still to collect
+
 - **ART benchmark:**
   - a **cross-reference** simulation (reads from hs1 / mhaESC aligned to hg38 / mm10), which would measure the expected real T2T benefit: reads from sequence missing in the old reference being forced onto wrong paralogues;
   - injected SNPs and indels (strain divergence);

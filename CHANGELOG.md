@@ -1,5 +1,37 @@
 # Changelog
 
+## 3.1.0 (branch `v3`, 2026-11)
+
+### Mitochondrial reads removed before `<s>.bam` (chromatin: ATAC, CHIP, CR, CT; both modes)
+- Reads are still aligned against the full genome, chrM included, so MAPQ decides between chrM and nuclear NUMT copies.
+  The aligner output then passes `samtools view -e 'rname != "chrM" && rnext != "chrM"'` before sorting: every record of
+  a fragment with the read or its mate on chrM is split off (no orphan mates). This is not PEPATAC-style prealignment.
+- Everything computed from `<s>.bam` is therefore nuclear only: Picard `Duplication_pct`, NRF/PBC, and in repeats mode
+  `.dedup.unique.bam`, its bigwig (RPKM denominator), peaks, FRiP, insert size, TSS score and featureCounts.
+  Genes-mode `.filt.bam` already excluded chrM; there only `Duplication_pct`, NRF and PBC change.
+- Why: in ATAC the near-saturated chrM reads dominated the duplication and complexity statistics, and in repeats mode
+  chrM peaks survived the blacklist and inflated FRiP. Vincendeau ATAC.HERVKC4 under 3.0.0: reported duplication
+  64–70% vs about 43% for nuclear fragments; 42–64% of the in-peak fragments were on chrM peaks.
+  Effect of 3.1.0 on the same data: `analysis/NGS.analysis.v3.validation/T3_mito/README.md`.
+  Measured (T3_mito, 6 libraries): duplication 64–70% → 44–47%, NRF 0.32–0.38 → 0.55–0.58, FRiP 17–23% → 7–13%, chrM peaks 8–9 → 0 per sample, LTR14 non-duplicate fragments identical.
+- New keys: `Mito_filter` (`removed` / `kept`), `Nuclear_fragments`. `Mito_fragments` now counts a fragment if either
+  mate is on chrM; `Aligned_fragments` and alignment percentages still include chrM.
+- bowtie2 `Aligned_fragments` / `Unique_fragments` / `Aligned_proper_pairs` are counted over `<s>.bam` plus the split-off BAM.
+- RNA keeps chrM. `--keep-mito` (hidden; `keep_mito` sample attribute) restores the 3.0 behaviour; T1 R1 uses it with
+  `--legacy-trim` so that repeats mode can still be compared with v2 command for command.
+- Not changed: the repeats IAP normalisation (STAR log totals, which include chrM; known issue 11).
+
+### Framework and environment
+- The version guard compares major.minor: 3.1 refuses an output folder written by 3.0 (pypiper would reuse the old
+  chrM-containing BAMs).
+- Picard 3.4.0 → 3.5.0 (MarkDuplicates stores the physical location as int: no overflow in optical-duplicate detection).
+  samtools stays 1.22.1 (the 1.22.4 backport is not on bioconda; 1.23+ deferred, roadmap S1).
+
+### Documentation
+- New `docs/roadmap.md`: prioritised open items, the decision against per-protocol sub-pipelines, package status.
+- README: QC/peaks rows corrected (complexity on `<s>.bam`; repeats peaks `--keep-dup 1`), per-sample `genome_config`.
+- `docs/repeat_strategy_open_questions.md`: issue 9 measured and closed, NUMT issue 12, T2T evidence moved to "collected".
+
 ## 3.0.0 (branch `v3`, 2026-10)
 
 ### Trimming (all modes)

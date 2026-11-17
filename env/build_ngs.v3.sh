@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the ngs.v3 environment as an exact copy of ngs.v2 plus MACS3 and gffread.
+# Build the ngs.v3 environment: copy of ngs.v2 plus MACS3, gffread and Picard 3.5.0.
 # Run on the login node (needs internet). ngs.v2 itself is not modified.
 #
 # ngs.v2 mixes conda packages with pip upgrades (pypiper 0.15.1, pipestat 0.13.1, looper 2.1.1 on top of
@@ -31,6 +31,9 @@ PIPPKG="divvy==0.6.0 logmuse==0.3.0 looper==2.1.1 piper==0.15.1 pipestat==0.13.1
 # MACS3 3.0.5 (fixes hmmratac IndexError in refine_peaks, MACS #735) needs anndata/zarr/h5py and zlib 1.3.2,
 # so it cannot be installed with --freeze-installed; hold the two pip-pinned looper deps at their versions
 "$MM" install -y -p "$V3" -c conda-forge -c bioconda 'macs3=3.0.5' 'pydantic-settings=2.14.0' 'python-dotenv=1.2.2'
+# 3.1.0: Picard 3.5.0 (MarkDuplicates stores the physical location as int, not short: no overflow in optical-duplicate
+# detection). Changes only the picard package. samtools stays 1.22.1 (1.22.4 is not on bioconda; 1.23+ not validated).
+"$MM" install -y -p "$V3" -c conda-forge -c bioconda 'picard=3.5.0' 'pydantic-settings=2.14.0' 'python-dotenv=1.2.2'
 
 # R packages that were installed from within R in ngs.v2 (install.packages / BiocManager, not conda):
 # (or upgraded there over the conda version); same R 4.5.1 and system libraries -> copy the package folders

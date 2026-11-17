@@ -2,10 +2,10 @@
 """T1 validation comparisons (plan: R0-R3). Usage: compare_T1.py <validation T1 dir>  -> writes compare/*.tsv + report.
 
 R0  v2_repeats_A vs v2_repeats_B          noise floor of STAR random multimapper placement (v2 vs itself)
-R1  v2_repeats_A vs v3_repeats_legacy      v3 repeats mode with v2 trimming must reproduce v2 (within R0)
+R1  v2_repeats_A vs v3_repeats_legacy      v3 repeats mode with v2 trimming and --keep-mito must reproduce v2 (within R0)
      - repeat-relevant commands identical after path normalisation
      - featureCounts family (.fc.txt), element (.fc.id.txt), IAP coverage
-R2  v3_repeats_legacy vs v3_repeats        effect of the new trimming alone on repeats outputs
+R2  v3_repeats_legacy vs v3_repeats        effect of the new trimming and (3.1+) the chrM split on repeats outputs
 R3  v2_genes vs v3_genes                   genes mode: fragments, bigwig correlation (1 kb bins)
 """
 import os

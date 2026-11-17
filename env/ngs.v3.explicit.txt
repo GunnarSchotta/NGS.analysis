@@ -300,7 +300,7 @@ https://conda.anaconda.org/conda-forge/linux-64/mysql-connector-c-6.1.11-h659d44
 https://conda.anaconda.org/conda-forge/noarch/oyaml-1.0-pyhd8ed1ab_0.tar.bz2#98c4dd307dbff3b69a2277dc1a55fd8d
 https://conda.anaconda.org/conda-forge/linux-64/perl-inc-latest-0.500-pl5321ha770c72_0.conda#0879971f134628d37bc4b13581113134
 https://conda.anaconda.org/conda-forge/linux-64/perl-module-build-0.4234-pl5321ha770c72_1.conda#358d42e9f08dd917b649089526e2ae1f
-https://conda.anaconda.org/bioconda/noarch/picard-3.4.0-hdfd78af_0.tar.bz2#40de476004af885d70d59725189bd07d
+https://conda.anaconda.org/bioconda/noarch/picard-3.5.0-hdfd78af_1.conda#7bf7cfcbf5d3be6953b38ca2ebf94fcd
 https://conda.anaconda.org/conda-forge/noarch/setuptools-80.9.0-pyhff2d567_0.conda#4de79c071274a53dcaf2a8c749d1499e
 https://conda.anaconda.org/conda-forge/noarch/wheel-0.45.1-pyhd8ed1ab_1.conda#75cb7132eb58d97896e173ef12ac9986
 https://conda.anaconda.org/conda-forge/noarch/pip-25.2-pyh8b19718_0.conda#dfce4b2af4bfe90cdcaf56ca0b28ddf5

@@ -58,9 +58,15 @@ samples:
   Multimapped_pct:
     type: number
     description: 'STAR only: multimapped / input [%]'
+  Mito_filter:
+    type: string
+    description: 'removed: chromatin fragments touching the mitochondrial chromosome were split off before <s>.bam (3.1+); kept: chrM retained (RNA, --keep-mito)'
+  Nuclear_fragments:
+    type: number
+    description: 'Mito_filter removed: aligned fragments in <s>.bam after the chrM split (Aligned_fragments - Mito_fragments) [fragments (PE: read pairs; SE: reads)]'
   Mito_fragments:
     type: number
-    description: 'Primary aligned on the mitochondrial chromosome [fragments (PE: read pairs; SE: reads)]'
+    description: 'Primary aligned on the mitochondrial chromosome; Mito_filter removed: read or mate on chrM [fragments (PE: read pairs; SE: reads)]'
   Mito_pct:
     type: number
     description: Mito_fragments / Aligned_fragments [%]
@@ -72,13 +78,13 @@ samples:
     description: Picard optical duplicates, PE [pairs]
   Duplication_pct:
     type: number
-    description: Picard PERCENT_DUPLICATION x 100 [%]
+    description: 'Picard PERCENT_DUPLICATION x 100, on <s>.bam (Mito_filter removed: nuclear fragments only) [%]'
   Filtered_fragments:
     type: number
     description: 'In the analysis BAM (genes: .filt.bam; repeats: .dedup.unique.bam, duplicates marked but retained) [fragments (PE: read pairs; SE: reads)]'
   Filtered_nondup_fragments:
     type: number
-    description: 'repeats mode: .dedup.unique.bam without duplicates [fragments (PE: read pairs; SE: reads)]'
+    description: 'repeats mode: .dedup.unique.bam without duplicates (Mito_filter removed: nuclear only) [fragments (PE: read pairs; SE: reads)]'
   Filtered_pct:
     type: number
     description: 'genes mode: Filtered_fragments / Trimmed_fragments [%]'
@@ -99,7 +105,7 @@ samples:
     description: Fragments >= 300 bp [%]
   NRF:
     type: number
-    description: Non-redundant fraction (distinct/total positions, unique fragments, before duplicate removal)
+    description: Non-redundant fraction (distinct/total positions, unique fragments in <s>.bam, before duplicate removal; Mito_filter removed = nuclear only)
   PBC1:
     type: number
     description: PCR bottlenecking coefficient 1 (M1/distinct)

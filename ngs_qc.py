@@ -114,6 +114,15 @@ def chrom_present(fai, chrom):
     return any(l.split("\t")[0] == chrom for l in open(fai))
 
 
+def mito_filter_cmd(samtools, mito, out_mito_bam, in_bam="-"):
+    """Pipe stage (in_bam, default stdin -> uncompressed BAM on stdout) that removes every record of a fragment touching the
+    mitochondrial genome: the read itself on `mito` (this includes unmapped mates placed there) or its mate on
+    `mito` (discordant nuclear/mito pairs, e.g. NUMTs). Both mates go, so no orphans reach MarkDuplicates/fixmate.
+    Removed records are written to `out_mito_bam` (for counting). SE reads have RNEXT '*' and are tested on RNAME."""
+    expr = 'rname != "{m}" && rnext != "{m}"'.format(m=mito)
+    return samtools + " view -u -e '" + expr + "' -U " + out_mito_bam + " " + in_bam
+
+
 # --------------------------------------------------------------------------- insert size
 def insert_size_qc(samtools, bam, out_prefix, max_len=1000):
     """Fragment-length histogram from proper-pair R1 records (|TLEN|), stats + plot.
@@ -162,7 +171,8 @@ def _plot_fraglen(cnt, n, name, out_prefix, max_len):
 
 # --------------------------------------------------------------------------- library complexity
 def library_complexity(bam, paired_end, mapq, tmpdir, threads=4):
-    """ENCODE library complexity on the duplicate-MARKED (not removed) BAM, uniquely mapped fragments.
+    """ENCODE library complexity on the aligned BAM <s>.bam (all fragments, duplicates not marked or removed;
+    chromatin: mitochondrial fragments already split off), uniquely mapped fragments.
     PE: fragment key = (chrom, leftmost pos, TLEN, R1 strand) from proper-pair R1 records.
     SE: key = (chrom, 5' end, strand).
     NRF = distinct/total; PBC1 = M1/distinct; PBC2 = M1/M2 (M1/M2: positions seen exactly once/twice)."""

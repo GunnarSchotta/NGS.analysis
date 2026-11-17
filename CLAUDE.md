@@ -13,8 +13,12 @@ CUT&RUN, CUT&Tag, RNA; `genes` or `repeats` mode). Usage is in
 
 - **genes mode** is modernised: v3 trimming, ENCODE-style `.filt.bam`, CPM
   bigwig, MACS3 peaks, FRiP, NRF/PBC, corrected TSS score.
-- **repeats mode** is v2 plus the trimming fix. This is deliberate:
-  everything else waits for the repeats redesign (see open questions).
+- **repeats mode** is v2 plus the trimming fix and (3.1) the chrM split.
+  This is deliberate: everything else waits for the repeats redesign (see
+  open questions).
+- **chromatin, both modes (3.1):** fragments touching chrM are removed
+  straight after alignment, before `<s>.bam` (`Mito_filter`,
+  `Nuclear_fragments`); `--keep-mito` keeps them (T1 R1 only).
 - Statistics are counts in fragments and percentages on a 0–100 scale
   (`docs/stats_units.md`).
 
@@ -31,9 +35,9 @@ from here.
 All paths are on the HPC (`/store24/project24/becgsc_001/...`, shortened
 to `.../` below).
 
-**`ngs.v3` env** (`.../micromamba/envs/ngs.v3/bin`): exact copy of `ngs.v2`
-plus MACS3 and gffread. Call by full path or put it first on `PATH`; no
-`micromamba activate`.
+**`ngs.v3` env** (`.../micromamba/envs/ngs.v3/bin`): copy of `ngs.v2`
+plus MACS3 (with anndata/zarr/h5py, zlib 1.3.2), gffread and Picard 3.5.0.
+Call by full path or put it first on `PATH`; no `micromamba activate`.
 
 | Tool | Version | Used for |
 |---|---|---|
@@ -42,7 +46,7 @@ plus MACS3 and gffread. Call by full path or put it first on `PATH`; no
 | STAR | 2.7.11b | repeats mode, RNA |
 | RSEM | (ngs.v2) | RNA quantification |
 | samtools | 1.22.1 | filtering, stats |
-| Picard | 3.4.0 | MarkDuplicates |
+| Picard | 3.5.0 (since 3.1.0) | MarkDuplicates |
 | featureCounts (subread) | 2.1.1 | repeat family / element counts |
 | bamCoverage (deepTools) | (ngs.v2) | bigwigs |
 | MACS3 | 3.0.5 | peaks |
@@ -104,7 +108,7 @@ The pipeline reads `genomes/<genome>.yaml` (key definitions in
 (`E=/store24/project24/becgsc_001/micromamba/envs/ngs.v3/bin`.)
 
 - T1 comparisons: R0 = v2 vs v2 noise, R1 = v3 repeats mode with
-  `--legacy-trim` must match v2 command for command, R2 = effect of the new
+  `--legacy-trim --keep-mito` must match v2 command for command, R2 = effect of the new
   trimming, R3 = genes mode v2 vs v3.
 - `make_v3_runs.sh` deletes and recreates its run folders.
 - Results and conclusions are in the `README.md` of the validation and
@@ -112,13 +116,20 @@ The pipeline reads `genomes/<genome>.yaml` (key definitions in
 - SLURM logs: `.../analysis/NGS.analysis.v3.{validation,benchmark}/logs/`,
   job names `ngsv3_<name>`, `%j` only (no `%x`).
 
-**Status (2026-10-03):** T1, T2 and the benchmark on all four genomes are
+**Status (2026-11-17):** T1, T2 and the benchmark on all four genomes are
 done. v3 repeats mode reproduces v2 (full-depth family/element r ≥ 0.9998).
 v3 genes mode matches the Edenhofer cutadapt re-processing within 0.3%.
+Real-data checks on 01.Angela (2026-10-07): uniqueness rule and short-fragment
+trimming effects measured (`analysis/NGS.analysis.v3.peaks.benchmark/`).
+Production use: Vincendeau ATAC.HERVKC4 (repeats, 3.0.0), LiLi SHIN CUT&Tag
+(genes, custom `genome_config`). **3.1.0** removes chrM fragments from
+chromatin `<s>.bam` (checked on T1 and on the Vincendeau ATAC data,
+`analysis/NGS.analysis.v3.validation/T3_mito/`).
 
 ## Open questions for further development
 
-Full lists: `docs/repeat_strategy_open_questions.md` (known issues,
+**Prioritised roadmap, the split decision and package status:** `docs/roadmap.md`
+(item IDs used there: A = repeats redesign, B/D/G/… = smaller items). Full lists: `docs/repeat_strategy_open_questions.md` (known issues,
 questions, evidence) and `docs/repeat_literature.md` (papers with DOIs and
 what each means for us). Benchmark numbers:
 `analysis/NGS.analysis.v3.benchmark/README.md`. New evidence goes into
@@ -139,9 +150,10 @@ purpose):
 6. STAR `--alignMatesGapMax 350` cuts nucleosomal ATAC/CUT&RUN fragments.
 7. RSEM runs on a transcriptome BAM made with `--outSAMmultNmax 1`.
 8. STAR `--alignEndsType EndToEnd`: no soft-clipping of residual adapter.
-9. Short fragments recovered by the v3 trimming add many multimappers.
+9. Short fragments recovered by the v3 trimming add multimappers (measured: family results unchanged, kept).
 10. CR/CT split puts TLEN 0 records in the sub-nucleosomal BAM.
-11. IAP normalisation counts STAR pairs, `bedtools coverage` counts mates.
+11. IAP normalisation counts STAR pairs, `bedtools coverage` counts mates (denominator still includes chrM).
+12. NUMTs: random-1 placement leaves the NUMT-placed half of chrM/NUMT reads in `<s>.bam`.
 
 **Evidence so far** (ART simulation from the reference itself, so an
 upper bound):
@@ -211,9 +223,10 @@ this.
 
 ### Smaller open points outside repeats
 
-- Trimmomatic `MINLEN:30` drops < 30 bp fragments that cutadapt `-m 20`
-  keeps (about 0.2% of ATAC fragments, relevant for footprinting).
-- Input normalisation for family-level ChIP counts is not done in any mode.
+Listed with IDs in `docs/roadmap.md` ("Next"): peak defaults and MACS3 3.1.0
+(D1–D4), RNA STAR multimapper cap (B2), all-MAPQ bigwig (B3), Trimmomatic
+MINLEN (B1), blacklists for hs1/mhaESC (G4), samtools 1.25 (S1). Input
+normalisation for family-level ChIP counts (A8) is not done in any mode.
 
 ## Working rules
 
