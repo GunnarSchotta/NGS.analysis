@@ -16,12 +16,19 @@ Explicit command-line paths (`--Bowtie2_index`, `--STAR_genome_index`, ...) over
 | `blacklist` | ENCODE-style blacklist BED, or `null` |
 | `mito` | mitochondrial chromosome name |
 | `canonical` | regex of chromosomes kept in filtered BAMs (mito is always removed) |
-| `macs_gsize` | MACS3 `-g` value (shorthand or number) |
+| `macs_gsize` | MACS3 `-g` value: a number (since 3.2.0; a shorthand still works but depends on the MACS version) |
 | `iap_plus_bed`, `iap_minus_bed` | IAP gag coverage BEDs (repeats mode; mm10 only), relative to the pipeline folder |
 
-Effective genome size: MACS shorthands (`mm` = 1.87e9, `hs` = 2.7e9) for all assemblies, including the T2T ones:
-the sequence added by T2T is mostly satellite / segmental duplication that is largely unmappable with short reads, and
-the shorthands keep peak calling comparable to mm10/hg38 analyses.
+Effective genome size (since 3.2.0 pinned as numbers, because the shorthands changed between MACS versions:
+`mm` = 1.87e9 in MACS2, 2,652,783,500 in MACS3; `hs` = 2.7e9 vs 2,913,022,398):
+- mm10 = 2,652,783,500 and hg38 = 2,913,022,398, MACS3's values (non-N length of GRCm38 / GRCh38). Same peaks as
+  `-g mm` / `-g hs` in MACS3 (validated in `analysis/NGS.analysis.v3.peaks.benchmark/`); compared with the MACS2 value
+  they give more, weaker peaks (broad marks +66–72 %, ATAC +8–12 %), which a replicate-consensus filter removes again
+  for ATAC.
+- mhaESC and hs1 use the mm10 and hg38 numbers. Their FASTAs have more non-N sequence (2,867,426,149 and
+  3,114,496,529; `resources/genomes/count_nonN.py`), but the extra T2T sequence is mostly satellite / segmental
+  duplication that is largely unmappable with short reads; the same number keeps peak calling comparable to
+  mm10/hg38 analyses.
 
 | genome | assembly | notes |
 |---|---|---|

@@ -49,7 +49,7 @@ Call by full path or put it first on `PATH`; no `micromamba activate`.
 | Picard | 3.5.0 (since 3.1.0) | MarkDuplicates |
 | featureCounts (subread) | 2.1.1 | repeat family / element counts |
 | bamCoverage (deepTools) | (ngs.v2) | bigwigs |
-| MACS3 | 3.0.5 | peaks |
+| MACS3 | 3.1.0 (since 3.2.0) | peaks |
 | gffread | | GFF3 → GTF for genome builds |
 | looper / pipestat / peppy / pypiper | 2.1.1 / 0.13.1 / 0.40.8 / 0.15.1 | framework |
 | python3, Rscript | | pipeline scripts, `NGS.summarizer.R` |
@@ -116,7 +116,7 @@ The pipeline reads `genomes/<genome>.yaml` (key definitions in
 - SLURM logs: `.../analysis/NGS.analysis.v3.{validation,benchmark}/logs/`,
   job names `ngsv3_<name>`, `%j` only (no `%x`).
 
-**Status (2026-11-17):** T1, T2 and the benchmark on all four genomes are
+**Status (2026-11-24):** T1, T2 and the benchmark on all four genomes are
 done. v3 repeats mode reproduces v2 (full-depth family/element r ≥ 0.9998).
 v3 genes mode matches the Edenhofer cutadapt re-processing within 0.3%.
 Real-data checks on 01.Angela (2026-10-07): uniqueness rule and short-fragment
@@ -124,7 +124,10 @@ trimming effects measured (`analysis/NGS.analysis.v3.peaks.benchmark/`).
 Production use: Vincendeau ATAC.HERVKC4 (repeats, 3.0.0), LiLi SHIN CUT&Tag
 (genes, custom `genome_config`). **3.1.0** removes chrM fragments from
 chromatin `<s>.bam` (checked on T1 and on the Vincendeau ATAC data,
-`analysis/NGS.analysis.v3.validation/T3_mito/`).
+`analysis/NGS.analysis.v3.validation/T3_mito/`). **3.2.0** changes peak calling
+only: MACS3 3.1.0, pinned genome size, 01.Angela histone thresholds (H3K27ac
+broad), ATAC `--call-summits` (peaks benchmark conclusions; checks in
+`analysis/NGS.analysis.v3.validation/T4_macs3.1/`).
 
 ## Open questions for further development
 
@@ -223,8 +226,9 @@ this.
 
 ### Smaller open points outside repeats
 
-Listed with IDs in `docs/roadmap.md` ("Next"): peak defaults and MACS3 3.1.0
-(D1–D4), RNA STAR multimapper cap (B2), all-MAPQ bigwig (B3), Trimmomatic
+Listed with IDs in `docs/roadmap.md` ("Next"): project-level consensus peaks (D4),
+histone control without a matched input (D5, test in
+`analysis/NGS.analysis.v3.peaks.benchmark/control_test/`), RNA STAR multimapper cap (B2), all-MAPQ bigwig (B3), Trimmomatic
 MINLEN (B1), blacklists for hs1/mhaESC (G4), samtools 1.25 (S1). Input
 normalisation for family-level ChIP counts (A8) is not done in any mode.
 

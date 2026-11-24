@@ -6,7 +6,7 @@
 # older conda metadata), so a plain clone is not exact:
 #   1. explicit conda export of ngs.v2 -> new prefix (same builds, from the package cache)
 #   2. pip packages that were pip-installed in ngs.v2, at the same versions, --no-deps
-#   3. gffread (bioconda, --freeze-installed; GFF3->GTF for genome resource builds) and MACS3 3.0.5 (see below)
+#   3. gffread (bioconda, --freeze-installed; GFF3->GTF for genome resource builds) and MACS3 (3.0.5, since 3.2.0 3.1.0)
 #   4. R packages installed from within R in ngs.v2 (copied)
 #   5. write env/ngs.v3.explicit.txt and env/ngs.v3.pip.txt (the pinned definition)
 set -euo pipefail
@@ -34,6 +34,10 @@ PIPPKG="divvy==0.6.0 logmuse==0.3.0 looper==2.1.1 piper==0.15.1 pipestat==0.13.1
 # 3.1.0: Picard 3.5.0 (MarkDuplicates stores the physical location as int, not short: no overflow in optical-duplicate
 # detection). Changes only the picard package. samtools stays 1.22.1 (1.22.4 is not on bioconda; 1.23+ not validated).
 "$MM" install -y -p "$V3" -c conda-forge -c bioconda 'picard=3.5.0' 'pydantic-settings=2.14.0' 'python-dotenv=1.2.2'
+# 3.2.0: MACS3 3.0.5 -> 3.1.0 (same build string; changes only the macs3 package). 5-14x faster callpeak, byte-identical
+# peaks on three benchmark calls (analysis/NGS.analysis.v3.validation/T4_macs3.1/). Its duplicate-threshold fix only
+# concerns --keep-dup auto, which v3 does not use.
+"$MM" install -y -p "$V3" -c conda-forge -c bioconda 'macs3=3.1.0' 'picard=3.5.0' 'pydantic-settings=2.14.0' 'python-dotenv=1.2.2'
 
 # R packages that were installed from within R in ngs.v2 (install.packages / BiocManager, not conda):
 # (or upgraded there over the conda version); same R 4.5.1 and system libraries -> copy the package folders

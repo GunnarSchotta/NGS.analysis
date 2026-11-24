@@ -10,7 +10,7 @@ Inputs (from the main run): genes mode .filt.bam, repeats mode .dedup.unique.bam
 Outputs: <sample>/peaks_ctrl_<genome>/<sample>_peaks[_noBL].{narrow,broad}Peak, FRiP; results in
 <sample>/NGS.peaks_stats.yaml (own pipeline name and schema: pipestat_peaks_results_schema.yaml).
 """
-__version__ = "3.0.0"
+__version__ = "3.2.0"
 
 from argparse import ArgumentParser
 import os
@@ -24,7 +24,10 @@ os.environ["PATH"] = os.path.dirname(sys.executable) + os.pathsep + os.environ.g
 sys.path.insert(0, SCRIPT_DIR)
 import ngs_qc as qc  # noqa: E402
 
-BROAD_TARGETS = {"h3k27me3", "h3k9me3", "h3k36me3", "h3k79me2", "h4k20me3", "h3k9me2", "h2ak119ub"}
+# same target classes and thresholds as NGS.analysis.py (3.2.0: 01.Angela settings, H3K27ac broad)
+BROAD_TARGETS = {"h3k27me3", "h3k9me3", "h3k36me3", "h3k79me2", "h4k20me3", "h3k9me2", "h2ak119ub", "h3k27ac"}
+MACS_NARROW_ARGS = "-q 0.01"
+MACS_BROAD_ARGS = "-q 1e-4 --broad --broad-cutoff 0.2"
 
 p = ArgumentParser(description="NGS.peaks " + __version__)
 p = pypiper.add_pypiper_args(p, groups=["pypiper", "looper", "ngs"], required=["sample-name", "output-parent", "genome"])
@@ -33,6 +36,7 @@ p.add_argument("--pipeline-mode", required=True, choices=["genes", "repeats"])
 p.add_argument("--control", default=None)
 p.add_argument("--target", default=None)
 p.add_argument("--peak-mode", default="auto", choices=["auto", "narrow", "broad", "none"])
+p.add_argument("--protocol", default=None, help="sample protocol; ATAC narrow peaks get --call-summits")
 p.add_argument("--se-extend", type=int, default=200)
 p.add_argument("--pipestat-config", default=None)
 args = p.parse_args()
@@ -78,19 +82,33 @@ pm.report_result("Control", args.control)
 pm.report_result("Peak_mode", mode)
 
 folder = os.path.join(outfolder, "peaks_ctrl_" + args.genome_assembly)
+# version guard: pypiper skips existing targets, so peaks of another major.minor version would be silently kept
+marker = os.path.join(folder, "NGS.peaks.version")
+if os.path.exists(marker):
+    old = open(marker).read().strip()
+    if old.split(".")[:2] != __version__.split(".")[:2]:
+        pm.fail_pipeline(RuntimeError(f"{folder} contains NGS.peaks {old} results; remove it to rerun with {__version__}"))
+elif os.path.isdir(folder) and os.listdir(folder):
+    pm.fail_pipeline(RuntimeError(f"{folder} contains peaks of an older NGS.peaks version; remove it to rerun"))
 os.makedirs(folder, exist_ok=True)
+with open(marker, "w") as fh:
+    fh.write(__version__ + "\n")
 ptype = "broadPeak" if mode == "broad" else "narrowPeak"
 peaks = os.path.join(folder, f"{args.sample_name}_peaks.{ptype}")
 peaks_nobl = os.path.join(folder, f"{args.sample_name}_peaks_noBL.{ptype}")
 keepdup = "all" if args.pipeline_mode == "genes" else "1"
-cmd = (f"macs3 callpeak -t {t_bam} -c {c_bam} -n {args.sample_name} --outdir {folder} -g {GSIZE} -q 0.01 "
+call_summits = (args.protocol or "").upper() == "ATAC" and mode == "narrow"
+cmd = (f"macs3 callpeak -t {t_bam} -c {c_bam} -n {args.sample_name} --outdir {folder} -g {GSIZE} "
        f"--keep-dup {keepdup}" + (" -f BAMPE" if paired else f" -f BAM --nomodel --extsize {args.se_extend}") +
-       (" --broad --broad-cutoff 0.1" if mode == "broad" else "") + f" 2> {folder}/{args.sample_name}.macs3.log")
+       " " + (MACS_BROAD_ARGS if mode == "broad" else MACS_NARROW_ARGS) + (" --call-summits" if call_summits else "") +
+       f" 2> {folder}/{args.sample_name}.macs3.log")
 pm.run(cmd, peaks, shell=True)
 pm.run((f"bedtools intersect -v -a {peaks} -b {BLACKLIST} > {peaks_nobl}") if BLACKLIST else f"cp {peaks} {peaks_nobl}",
        peaks_nobl, shell=True)
-n = qc.count_lines(peaks_nobl)
+n = len(qc.peak_regions(peaks_nobl))                        # regions, not summit records
 pm.report_result("Peaks_ctrl_n", n)
+if call_summits:
+    pm.report_result("Peak_summits_ctrl_n", qc.count_lines(peaks_nobl))
 if n:
     saf = peaks_nobl + ".saf"
     qc.peaks_to_saf(peaks_nobl, saf)

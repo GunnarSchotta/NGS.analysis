@@ -247,12 +247,29 @@ def plot_tss(norm, score, name, out_prefix, cutoff=6.0):
 
 
 # --------------------------------------------------------------------------- peaks
-def peaks_to_saf(peak_file, saf):
-    with open(peak_file) as f, open(saf, "w") as o:
-        o.write("GeneID\tChr\tStart\tEnd\tStrand\n")
-        for i, line in enumerate(f):
+def peak_regions(peak_file):
+    """Unique (chrom, start, end) of a MACS peak file, in file order. With --call-summits MACS writes one record
+    per summit and repeats the region coordinates; a region must be counted (and given to featureCounts) once."""
+    seen, out = set(), []
+    with open(peak_file) as f:
+        for line in f:
             c = line.split("\t")
-            o.write(f"peak{i}\t{c[0]}\t{int(c[1]) + 1}\t{c[2]}\t.\n")
+            key = (c[0], int(c[1]), int(c[2]))
+            if key not in seen:
+                seen.add(key)
+                out.append(key)
+    return out
+
+
+def peaks_to_saf(peak_file, saf):
+    """One SAF feature per unique peak region (duplicate summit records would make featureCounts call the
+    fragments in multi-summit regions Unassigned_Ambiguity and lower FRiP). Returns the number of regions."""
+    regions = peak_regions(peak_file)
+    with open(saf, "w") as o:
+        o.write("GeneID\tChr\tStart\tEnd\tStrand\n")
+        for i, (chrom, start, end) in enumerate(regions):
+            o.write(f"peak{i}\t{chrom}\t{start + 1}\t{end}\t.\n")
+    return len(regions)
 
 
 def count_lines(path):

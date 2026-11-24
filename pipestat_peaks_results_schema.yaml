@@ -9,7 +9,10 @@ samples:
     description: "MACS3 mode: narrow or broad"
   Peaks_ctrl_n:
     type: number
-    description: "Peaks vs control after blacklist removal"
+    description: "Peak regions vs control after blacklist removal (unique regions; ATAC summit records counted once)"
+  Peak_summits_ctrl_n:
+    type: number
+    description: "Peak summits vs control after blacklist removal (ATAC, MACS3 --call-summits)"
   FRiP_ctrl_pct:
     type: number
     description: "Fragments in control-based peaks / usable fragments [%]"

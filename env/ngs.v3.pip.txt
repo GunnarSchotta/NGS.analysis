@@ -45,7 +45,7 @@ kiwisolver==1.4.9
 legacy-api-wrap==1.5
 logmuse==0.3.0
 looper==2.1.1
-MACS3==3.0.5
+MACS3==3.1.0
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 matplotlib==3.10.7

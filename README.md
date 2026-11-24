@@ -30,7 +30,7 @@ It is built on [pypiper](http://pypiper.databio.org/en/latest/) and submitted to
 | Bigwig | `<s>.filt.bw` (CPM, fragment-extended); RNA: `<s>.bw` | `<s>.dedup.unique.bw` (RPKM, v2) |
 | CR/CT | `.filt.nuc/.subnuc` BAMs + bigwigs (fragments ≥ / < 120 bp) | `.dedup.unique.nuc/.subnuc` (v2) |
 | QC | insert size and TSS score (ATAC) on the analysis BAM; library complexity (NRF/PBC) and duplication on `<s>.bam`; mito % | same (analysis BAM = `.dedup.unique.bam`) |
-| Peaks | MACS3 `--keep-dup all` (duplicates already removed), narrow/broad (`peak_mode`, `auto` from `target`), blacklist-filtered, FRiP | same, on the unique BAM with `--keep-dup 1` (duplicates only marked) |
+| Peaks | MACS3 `--keep-dup all` (duplicates already removed), narrow `-q 0.01` / broad `-q 1e-4 --broad-cutoff 0.2` (`peak_mode`, `auto` from `target`), ATAC `--call-summits`, numeric genome size from `genomes/<g>.yaml`, blacklist-filtered, FRiP. Per-sample peaks have **no control**: for histone marks they are QC only, use `NGS.peaks` (step 4) for analysis | same, on the unique BAM with `--keep-dup 1` (duplicates only marked) |
 | Repeats | – | featureCounts family / element counts, IAP coverage (mm10) |
 
 All statistics are in **fragments** (PE pairs, SE reads), and percentages are on a 0–100 scale. Every key is
@@ -41,7 +41,7 @@ defined in `docs/stats_units.md`.
 1. **Project folder.** Create `sample.table.csv`, `analysis.configuration.yaml` and `.looper.yaml` (see `example/`).
    - **Sample table:** `sample_name, ..., protocol, organism, fastq1, fastq2, read_type, read1, read2`.
    - **Optional columns:**
-     - `target`: antibody; used by `peak_mode: auto`. Broad for H3K27me3/H3K9me3/H3K36me3/H3K79me2/H4K20me3; no peaks for none/input/IgG.
+     - `target`: antibody; used by `peak_mode: auto`. Broad for H3K27ac/H3K27me3/H3K9me3/H3K9me2/H3K36me3/H3K79me2/H4K20me3/H2AK119ub; no peaks for none/input/IgG; narrow otherwise.
      - `peak_mode`: narrow, broad, none or auto.
      - `control`: sample_name of the input/IgG, used by `NGS.peaks`.
    - **Sample names:** don't use spaces or special characters, and don't let one sample name be a prefix of another at a `_` boundary (`A` and `A_rep2`). pipestat's status-flag lookup cannot tell them apart.
@@ -62,9 +62,11 @@ defined in `docs/stats_units.md`.
    ```
    looper run -p slurm -c .looper.peaks.yaml
    ```
+   Peak parameters as in the main run (01.Angela settings, validated in `analysis/NGS.analysis.v3.peaks.benchmark/`).
+   `peaks_ctrl_<genome>/` of another major.minor version is refused; remove it to recall peaks.
 
-v3 refuses to write into an output folder that contains results of another major.minor version (v2, or 3.0 when
-running 3.1), because pypiper would silently reuse old files. Use a new `output_dir`.
+v3 refuses to write into an output folder that contains results of another major.minor version (v2, or 3.1 when
+running 3.2), because pypiper would silently reuse old files. Use a new `output_dir`.
 
 ## Project summary (`results/project/summary/`)
 
@@ -78,7 +80,7 @@ running 3.1), because pypiper would silently reuse old files. Use a new `output_
 ## Installation
 
 The pipeline runs in the `ngs.v3` micromamba environment (`/store24/project24/becgsc_001/micromamba/envs/ngs.v3`).
-- `env/build_ngs.v3.sh` rebuilds it: a copy of `ngs.v2` (conda packages, pip packages, R packages) plus MACS3 3.0.5 (with its anndata/zarr/h5py and zlib 1.3.2 dependencies), gffread and Picard 3.5.0.
+- `env/build_ngs.v3.sh` rebuilds it: a copy of `ngs.v2` (conda packages, pip packages, R packages) plus MACS3 3.1.0 (with its anndata/zarr/h5py and zlib 1.3.2 dependencies), gffread and Picard 3.5.0.
 - The pinned definitions are `env/ngs.v3.explicit.txt` and `env/ngs.v3.pip.txt`.
 - The interfaces call the environment's python by absolute path and find scripts via `{looper.piface_dir}`, so no paths need to be edited.
 

@@ -1,5 +1,40 @@
 # Changelog
 
+## 3.2.0 (branch `v3`, 2026-11)
+
+Peak calling follows the 01.Angela settings and conclusions of the peaks benchmark
+(`analysis/NGS.analysis.v3.peaks.benchmark/README.md`, roadmap D1–D3). Alignment, filtering, bigwigs and counts are
+unchanged; only peaks, `Peaks_n` and FRiP change.
+
+### Peaks
+- **Effective genome size pinned as a number** (`macs_gsize` in `genomes/<g>.yaml`): mm10 and mhaESC 2,652,783,500,
+  hg38 and hs1 2,913,022,398. These are MACS3's own `mm`/`hs` values, so mm10/hg38 peaks are the same as with 3.1;
+  the shorthands are no longer used because their meaning changed between MACS versions (MACS2: 1.87e9/2.7e9). The
+  benchmark showed this is the only difference between MACS2 and MACS3: MACS3 with `-g 1.87e9` reproduces MACS2
+  exactly. The larger value gives more, weaker peaks (ATAC +8–12 %, removed again by a 2-replicate consensus;
+  broad histone marks +66–72 %, reproducible across replicates). hs1/mhaESC keep their reference build's value (extra
+  T2T sequence is mostly unmappable satellite); `resources/genomes/count_nonN.py` documents the actual non-N lengths.
+- **Histone thresholds = 01.Angela settings:** broad marks `-q 1e-4 --broad --broad-cutoff 0.2` (3.1: `-q 0.01
+  --broad-cutoff 0.1`, 31–33 % fewer domains than 01.Angela); narrow marks unchanged (`-q 0.01`).
+- **H3K27ac is called broad** (`auto` mode; 3.1: narrow, Jaccard 0.37 to 01.Angela, FRiP 29 vs 40 %).
+- **ATAC with `--call-summits`** (main pipeline and `NGS.peaks`; `NGS.peaks` now receives `--protocol`). MACS3 writes one
+  record per summit and repeats the region, so multi-summit regions (about 10 %) can be split downstream; without it
+  the 01.Angela summit-based consensus lost 15 % of its peaks.
+  - `Peaks_n` / `Peaks_ctrl_n` now count unique regions; new keys `Peak_summits_n` / `Peak_summits_ctrl_n` count the
+    summit records.
+  - FRiP: the SAF has one feature per region (`ngs_qc.peaks_to_saf`). With duplicated summit records, featureCounts
+    would have called fragments in multi-summit regions `Unassigned_Ambiguity`.
+- Per-sample peaks without a control are documented as QC-only for histone marks (benchmark: Jaccard 0.10–0.32 to
+  the control-based 01.Angela peaks); use `NGS.peaks`.
+
+### Framework and environment
+- MACS3 3.0.5 → 3.1.0 in `ngs.v3` (only the macs3 package changes). Byte-identical peaks on three benchmark calls
+  (ATAC with summits, H3K9me3 broad and H3K27ac narrow with control), 5–14× faster
+  (`analysis/NGS.analysis.v3.validation/T4_macs3.1/`).
+- Version guard: 3.2 refuses 3.1 output folders (peak files would otherwise be kept). `NGS.peaks` has its own guard
+  (`peaks_ctrl_<genome>/NGS.peaks.version`).
+- `tests/test_schema_keys.py` also checks `NGS.peaks.py` against `pipestat_peaks_results_schema.yaml`.
+
 ## 3.1.0 (branch `v3`, 2026-11)
 
 ### Mitochondrial reads removed before `<s>.bam` (chromatin: ATAC, CHIP, CR, CT; both modes)

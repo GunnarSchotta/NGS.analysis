@@ -17,6 +17,6 @@ tss_bed: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/mhaESC_TS
 blacklist: null
 mito: chrM
 canonical: "chr([0-9]+|X|Y)"
-macs_gsize: mm
+macs_gsize: 2652783500          # as mm10 (MACS3 'mm'); this FASTA's non-N = 2,867,426,149, extra mostly unmappable satellite
 iap_plus_bed: null
 iap_minus_bed: null

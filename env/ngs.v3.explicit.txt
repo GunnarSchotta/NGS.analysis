@@ -295,7 +295,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libopenssl-static-3.5.4-hb03c661
 https://conda.anaconda.org/conda-forge/linux-64/libxml2-16-2.15.1-ha9997c6_0.conda#e7733bc6785ec009e47a224a71917e84
 https://conda.anaconda.org/conda-forge/linux-64/libxml2-2.15.1-h26afc86_0.conda#e512be7dc1f84966d50959e900ca121f
 https://conda.anaconda.org/conda-forge/linux-64/libxml2-devel-2.15.1-h26afc86_0.conda#1b92b7d1b901bd832f8279ef18cac1f4
-https://conda.anaconda.org/bioconda/linux-64/macs3-3.0.5-py312h9639c01_0.conda#6d1688b79063960d1294c1bacd03dec2
+https://conda.anaconda.org/bioconda/linux-64/macs3-3.1.0-py312h9639c01_0.conda#8e275d11f0d51dd47b4829652ce7c493
 https://conda.anaconda.org/conda-forge/linux-64/mysql-connector-c-6.1.11-h659d440_1008.conda#149e0b89cbbe09397f1147cb3736bcbe
 https://conda.anaconda.org/conda-forge/noarch/oyaml-1.0-pyhd8ed1ab_0.tar.bz2#98c4dd307dbff3b69a2277dc1a55fd8d
 https://conda.anaconda.org/conda-forge/linux-64/perl-inc-latest-0.500-pl5321ha770c72_0.conda#0879971f134628d37bc4b13581113134

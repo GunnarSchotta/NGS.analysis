@@ -14,6 +14,7 @@ sample_interface:
     --genome {sample.genome}
     --pipeline-mode {project.pipeline_mode}
     --single-or-paired {sample.read_type}
+    --protocol {sample.protocol}
     {% if sample.genome_config is defined and sample.genome_config %} --genome-config {sample.genome_config} {% endif %}
     {% if sample.control is defined and sample.control %} --control {sample.control} {% endif %}
     {% if sample.target is defined and sample.target %} --target {sample.target} {% endif %}

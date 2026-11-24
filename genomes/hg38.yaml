@@ -11,6 +11,6 @@ tss_bed: /store24/project24/becgsc_001/genomes/hg38/Annotation/Genes/hg38_TSS.be
 blacklist: /store24/project24/becgsc_001/genomes/hg38/GRCh38_unified_blacklist.bed
 mito: chrM
 canonical: "chr([0-9]+|X|Y)"
-macs_gsize: hs
+macs_gsize: 2913022398          # MACS3 'hs' (GRCh38 non-N length); UCSC hg38 FASTA non-N = 2,934,876,451
 iap_plus_bed: null
 iap_minus_bed: null

@@ -1,4 +1,4 @@
-# NGS.analysis v3: development roadmap (as of 2026-11-17)
+# NGS.analysis v3: development roadmap (as of 2026-11-24)
 
 One line per item: what, where it is documented, kind (**D** decision, **B** bug, **F** feature, **A** analysis),
 size (S < 1 day, M a few days + T1 rerun, L 1–3 weeks or a benchmark, XL redesign). Item IDs are stable; refer to
@@ -13,12 +13,21 @@ them in commits and READMEs. Repeats-mode details and evidence: `repeat_strategy
 - Picard 3.5.0 (MarkDuplicates optical-duplicate overflow fix). Version guard now on major.minor.
 - Stale docs fixed (README QC row, peaks `--keep-dup`, per-sample `genome_config`, issue 9 measured, T2T evidence).
 
+## Done in 3.2.0
+- **D1** (2026-11-24): peaks benchmark conclusions written, `analysis/NGS.analysis.v3.peaks.benchmark/README.md`.
+  Main finding: MACS3 differs from MACS2 only through `-g mm` (1.87e9 in MACS2, 2.65e9 in MACS3); MACS3 with
+  `-g 1.87e9` reproduces MACS2 exactly.
+- **D2** (decided 2026-11-24): (a) keep MACS3's larger genome size, pinned as a number (mm10/mhaESC 2,652,783,500,
+  hg38/hs1 2,913,022,398); (b) 01.Angela histone settings: broad `-q 1e-4 --broad-cutoff 0.2`, H3K27ac broad;
+  (c) per-sample no-control peaks documented as QC-only for histone marks. MACS3 3.1.0 (identical peaks, 5–14× faster).
+- **D3** (decided 2026-11-24): ATAC `--call-summits`; `Peaks_n` counts regions, new `Peak_summits_n`; FRiP per region
+  (with one feature per summit record FRiP would drop 32.8 → 25.8 %). BAMPE stays; Tn5 mode not added; HMMRATAC dropped.
+- Validation: `analysis/NGS.analysis.v3.validation/T4_macs3.1/`, T1 re-run (R1 still identical), T1 `NGS.peaks` smoke test.
+
 ## Next: small, independent changes (each needs a decision first)
 | ID | Item | Source | Kind | Size |
 |---|---|---|---|---|
-| D1 | Write up the peaks benchmark conclusions (numbers in `results/RESULTS.md` since 2026-10-07) | `analysis/NGS.analysis.v3.peaks.benchmark/README.md` | doc | S |
-| D2 | Peak defaults for histone marks: H3K27ac narrow vs broad, broad-cutoff 0.1 vs 0.2, q 0.01 vs 1e-4, `--call-summits` (v3 vs 01.Angela Jaccard 0.37 for H3K27ac). Combine with MACS3 3.1.0 (faster; changes control-based results) | peaks benchmark `results/RESULTS.md` | D | M |
-| D3 | ATAC peak mode: BAMPE vs Tn5-shifted cut sites vs HMMRATAC (benchmark arms exist) | peaks benchmark README | D | S |
+| D5 | Control for histone peaks when no matched input exists: fixed reference input vs simulated input (per genome and read length) vs `--nolambda`. Test running (2026-11-24): `analysis/NGS.analysis.v3.peaks.benchmark/control_test/` | peaks benchmark control test | A/D | M |
 | D4 | Project-level consensus peak set (`make.common.peakset` logic) so peak numbers are comparable across samples | `analysis/Vincendeau/ATAC.HERVKC4/README.md` | F | M |
 | B2 | RNA genes mode uses STAR's default multimapper cap (10): reads with more loci are dropped, which suppressed HERV signal in the HERVKC4 RNA-seq | `analysis/Vincendeau/HERVKC4/locus_quantification/README.md` | D | S |
 | B3 | MAPQ ≥ 30 removes transgene/TRE and young-repeat signal from `.filt.bw`; optional all-MAPQ bigwig | `analysis/LiLi/playground/05.*`, `06.*` READMEs | F | S |
@@ -47,7 +56,7 @@ them in commits and READMEs. Repeats-mode details and evidence: `repeat_strategy
 The redesign is also when the code gets split into modules (see below): the new repeats strategy is written as its own
 module next to the frozen v2 one, selectable per project, and compared on T1/T2 and real data before it replaces it.
 
-## Decision: no per-protocol sub-pipelines (2026-11-17)
+## Decision: no per-protocol sub-pipelines (2026-11-24)
 Considered: separate looper pipelines per protocol (ATAC, ChIP, CR/CT, RNA). Not done, because:
 - **Protocol-specific code is small.** ATAC adds the TSS score (about 17 lines), CR/CT the nuc/subnuc split (about 17),
   RNA RSEM and its bigwig (about 30); ChIP has nothing of its own. About 45% of `NGS.analysis.py` (setup, trimming,
@@ -65,7 +74,7 @@ Considered: separate looper pipelines per protocol (ATAC, ChIP, CR/CT, RNA). Not
   latest stable releases. peppy 0.50 is pre-release only (it absorbs eido and pephubclient; expect conflicts) – stay
   on 0.40.8. eido 0.2.6 / pephubclient 0.6.0 bring nothing we use.
 - **Updated in 3.1.0:** Picard 3.4.0 → 3.5.0.
-- **Deferred:** samtools 1.25 (S1); MACS3 3.1.0 (with D2); bowtie2 2.5.5 (only `-k` determinism and AVX dispatch;
+- **Deferred:** samtools 1.25 (S1); MACS3 3.1.0 (with D2; released 2026-10-21, speed + `--threads`, fixes not relevant to our `--keep-dup` settings); bowtie2 2.5.5 (only `-k` determinism and AVX dispatch;
   relevant for A1 if bowtie2 `-k` is used).
 - **Do not upgrade without re-validation:** deepTools 4.0 (Rust rewrite; `--ignoreDuplicates`/`--exactScaling`
   removed, bigwig values not identical), Trimmomatic 0.41 (requires Java 25; 0.40 adds poly-G clipping).

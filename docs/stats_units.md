@@ -57,6 +57,7 @@ The exceptions are `Raw_reads`, `Fastq_reads` and `PF_reads`. pypiper reports th
   - Built from the Tn5 insertion profile (±2 kb, 1-bp resolution; `pyTssEnrichment.py`), normalised by the mean of the outer 100 bp on both sides.
   - The score is the mean of ±50 bp around the maximum within ±500 bp of the TSS.
   - It is not identical to the v2/PEPATAC score, which normalised by the upstream flank only and searched for the maximum over the whole window.
-- **Peaks:** MACS3, blacklist removed.
-  - `Peaks_n` = number of peaks.
-  - `FRiP_pct` = fragments assigned to peaks by featureCounts (fragment-level with `--countReadPairs` for PE, duplicates ignored), as a percentage of usable fragments (assigned + no feature + ambiguous + overlap-length).
+- **Peaks:** MACS3, blacklist removed. The same definitions apply to the control-based keys of `NGS.peaks` (`Peaks_ctrl_n`, `Peak_summits_ctrl_n`, `FRiP_ctrl_pct`).
+  - `Peaks_n` = number of peak **regions** (unique chrom/start/end).
+  - `Peak_summits_n` (ATAC only, since 3.2.0) = number of summit records. ATAC is called with `--call-summits`, which writes one record per summit and repeats the region coordinates, so `Peak_summits_n` ≥ `Peaks_n`.
+  - `FRiP_pct` = fragments assigned to peaks by featureCounts (fragment-level with `--countReadPairs` for PE, duplicates ignored), as a percentage of usable fragments (assigned + no feature + ambiguous + overlap-length). Each peak region is one feature, so summit records do not make fragments ambiguous.

@@ -120,7 +120,10 @@ samples:
     description: 'MACS3 mode used: narrow, broad or none'
   Peaks_n:
     type: number
-    description: Peaks after blacklist removal
+    description: Peak regions after blacklist removal (unique regions; ATAC summit records counted once)
+  Peak_summits_n:
+    type: number
+    description: Peak summits after blacklist removal (ATAC, MACS3 --call-summits; one record per summit)
   FRiP_pct:
     type: number
     description: Fragments in peaks / usable fragments of the analysis BAM [%]

@@ -11,6 +11,6 @@ tss_bed: /store24/project24/becgsc_001/genomes/mm10/Annotation/Genes/mm10_TSS.be
 blacklist: /store24/project24/becgsc_001/genomes/mm10/mm10_blacklisted_regions_ENCFF547MET.bed
 mito: chrM
 canonical: "chr([0-9]+|X|Y)"
-macs_gsize: mm
+macs_gsize: 2652783500          # MACS3 'mm' (GRCm38 non-N length); UCSC mm10 FASTA non-N = 2,647,537,730
 iap_plus_bed: gag.plus.15k.sorted.bed
 iap_minus_bed: gag.minus.15k.sorted.bed

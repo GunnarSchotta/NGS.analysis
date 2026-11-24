@@ -11,11 +11,13 @@ Modes
 All modes: Trimmomatic with minAdapterLength 1 + keepBothReads (PE), statistics in fragments (docs/stats_units.md).
 Chromatin (both modes, since 3.1.0): pairs touching the mitochondrial genome are split off straight after alignment,
 so <s>.bam and everything derived from it (duplicates, complexity, peaks, FRiP, bigwigs, counts) is nuclear only.
+Peaks (since 3.2.0): MACS3 3.1.0 with a numeric effective genome size (genomes/<g>.yaml, MACS3's mm/hs), 01.Angela
+settings (broad incl. H3K27ac: -q 1e-4 --broad-cutoff 0.2), ATAC with --call-summits (Peaks_n = regions).
 """
 
 __author__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 
 from argparse import ArgumentParser, SUPPRESS
 import os
@@ -36,7 +38,11 @@ import ngs_qc as qc  # noqa: E402
 
 PROTOCOLS = ["CHIP", "CT", "CR", "RNA", "ATAC"]
 PIPELINEMODE = ["genes", "repeats"]
-BROAD_TARGETS = {"h3k27me3", "h3k9me3", "h3k36me3", "h3k79me2", "h4k20me3", "h3k9me2", "h2ak119ub"}
+# broad marks; H3K27ac broad since 3.2.0 (01.Angela setting; narrow lost half of the domains, peaks benchmark)
+BROAD_TARGETS = {"h3k27me3", "h3k9me3", "h3k36me3", "h3k79me2", "h4k20me3", "h3k9me2", "h2ak119ub", "h3k27ac"}
+# MACS3 thresholds (3.2.0 = 01.Angela settings): narrow -q 0.01; broad -q 1e-4 with --broad-cutoff 0.2
+MACS_NARROW_ARGS = "-q 0.01"
+MACS_BROAD_ARGS = "-q 1e-4 --broad --broad-cutoff 0.2"
 NO_PEAK_TARGETS = {"none", "input", "igg", "na", ""}
 
 parser = ArgumentParser(description="NGS analysis version " + __version__)
@@ -115,7 +121,8 @@ os.makedirs(outfolder, exist_ok=True)
 _marker = os.path.join(outfolder, "NGS.analysis.version")
 if os.path.exists(_marker):
     _old = open(_marker).read().strip()
-    if _old.split(".")[:2] != __version__.split(".")[:2]:     # major.minor: 3.1 changed <s>.bam (chrM removed)
+    # major.minor: 3.1 changed <s>.bam (chrM removed), 3.2 the peak calls (existing peak files would be kept)
+    if _old.split(".")[:2] != __version__.split(".")[:2]:
         sys.exit(f"ERROR: {outfolder} contains results of NGS.analysis {_old}; v{__version__} would silently "
                  f"reuse them (pypiper skips existing targets). Use a new output folder.")
 elif any(os.path.exists(os.path.join(outfolder, f)) for f in ("stats.yaml", "NGS.analysis_log.md")):
@@ -605,18 +612,24 @@ if args.protocol != "RNA" and analysis_bam and peak_mode != "none":
     peaks_nobl = os.path.join(peak_folder, args.sample_name + "_peaks_noBL." + ptype)
     keepdup = "all" if args.pipeline_mode == "genes" else "1"   # repeats BAM still contains (marked) duplicates
     cmd = MACS3 + " callpeak -t " + analysis_bam + " -n " + args.sample_name + " --outdir " + peak_folder
-    cmd += " -g " + MACS_GSIZE + " -q 0.01 --keep-dup " + keepdup
+    cmd += " -g " + MACS_GSIZE + " --keep-dup " + keepdup
     cmd += " -f BAMPE" if args.paired_end else " -f BAM --nomodel --extsize " + str(args.se_extend)
-    if peak_mode == "broad":
-        cmd += " --broad --broad-cutoff 0.1"
+    cmd += " " + (MACS_BROAD_ARGS if peak_mode == "broad" else MACS_NARROW_ARGS)
+    # ATAC: one record per summit, so multi-summit regions can be split into individual peaks downstream
+    # (summit-based consensus, e.g. make_common_peakset); region coordinates are repeated per summit
+    call_summits = args.protocol == "ATAC" and peak_mode == "narrow"
+    if call_summits:
+        cmd += " --call-summits"
     cmd += " 2> " + os.path.join(peak_folder, args.sample_name + ".macs3.log")
     pm.run(cmd, peaks, shell=True, nofail=True)
     if os.path.exists(peaks):
         cmd = (BEDTOOLS + " intersect -v -a " + peaks + " -b " + BLACKLIST + " > " + peaks_nobl) if BLACKLIST \
             else ("cp " + peaks + " " + peaks_nobl)
         pm.run(cmd, peaks_nobl, shell=True)
-        n_peaks = qc.count_lines(peaks_nobl)
+        n_peaks = len(qc.peak_regions(peaks_nobl))          # regions, not summit records
         report("Peaks_n", n_peaks)
+        if call_summits:
+            report("Peak_summits_n", qc.count_lines(peaks_nobl))
     if os.path.exists(peaks) and n_peaks == 0:
         pm.info("No peaks called; FRiP not computed")
     elif os.path.exists(peaks):
