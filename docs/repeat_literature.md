@@ -84,6 +84,16 @@ Not exhaustive. bioRxiv has no keyword search, so preprints only appear when Pub
 
 No dedicated method was found in PubMed for PCR-duplicate detection among multimapped reads. Our open issue 2 (a random locus per duplicate copy) remains a design decision. Options are listed in `repeat_strategy_open_questions.md`: deduplication before alignment at the sequence or fragment level, or UMIs.
 
+## 8. Update 2026-11-24 (PubMed + web search for preprints)
+
+Question: has a new standard replaced the Teissandier 2019 strategy since then?
+- **Chromatin allocation:** nothing newer than Allo (2024) found. Allo's own paper reports it beats SmartMap on
+  peak-type data (38 ENCODE test sets); no independent comparison and no benchmark on broad marks (H3K9me3) exists.
+- **RNA:** MAJEC (Lim & Firestone 2026, Bioinformatics. [10.1093/bioinformatics/btag737](https://doi.org/10.1093/bioinformatics/btag737)) models genes, isoforms and TE loci in one EM from a BAM. It uses splice junctions to separate genic from TE reads: exon-overlap contamination of locus TE signal drops from 43 % (Telescope) to 5 %. Subfamily-level DE agrees with TEtranscripts (r = 0.987). On bioconda. The most relevant new tool for our RNA repeats output (TEspeX's exonised-TE problem, solved inside the quantifier).
+- **TrAP** (Chamorro-Parejo & Ramos 2026, IJMS. [10.3390/ijms27219762](https://doi.org/10.3390/ijms27219762)): transformer read classification for human L1HS/L1PA before Salmon/EM. Small locus-level gain only; human L1-specific.
+- **Assay matters for young TEs:** a bioRxiv preprint ("CUT&Tag identifies repetitive genomic loci that are excluded from ChIP assays", 2025, [10.1101/2025.02.03.636299](https://doi.org/10.1101/2025.02.03.636299)) reports robust H3K9me3 signal by CUT&Tag at many young retrotransposons where ChIP shows little. Not peer-reviewed; relevant when comparing ChIP and CUT&Tag repeat results.
+- **Long-read chromatin profiling** is now established as the way to resolve copies short reads cannot: DiMeLo-seq (Altemose 2022, Nat Methods. [10.1038/s41592-022-01475-6](https://doi.org/10.1038/s41592-022-01475-6); antibody-directed methylation, e.g. CENP-A in unmappable centromeres) and Fiber-seq (Stergachis 2020, Science. [10.1126/science.aaz1646](https://doi.org/10.1126/science.aaz1646); single-molecule accessibility), in addition to Nanopore CpG methylation (section 6). Candidates for the ground-truth pilot (H6).
+
 ## What this means for the NGS.analysis repeat strategy
 
 1. **Chromatin, element level.**

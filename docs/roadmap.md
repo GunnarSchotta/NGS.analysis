@@ -27,7 +27,7 @@ them in commits and READMEs. Repeats-mode details and evidence: `repeat_strategy
 ## Next: small, independent changes (each needs a decision first)
 | ID | Item | Source | Kind | Size |
 |---|---|---|---|---|
-| D5 | Control for histone peaks when no matched input exists: fixed reference input vs simulated input (per genome and read length) vs `--nolambda`. Test running (2026-11-24): `analysis/NGS.analysis.v3.peaks.benchmark/control_test/` | peaks benchmark control test | A/D | M |
+| D5 | Default control for histone peaks without a matched input. Tested 2026-11-25 (`analysis/NGS.analysis.v3.peaks.benchmark/control_test/`): a fixed real input of another cell type ≈ matched input (Jaccard 0.71–0.76); simulated input recovers 86–96 % of peaks but adds 10–50 % weaker, more promoter-proximal regions; `--nolambda`/no control unsuitable. To decide: per-genome default input in `genomes/<g>.yaml`, simulated input as fallback | control test README | D/F | M |
 | D4 | Project-level consensus peak set (`make.common.peakset` logic) so peak numbers are comparable across samples | `analysis/Vincendeau/ATAC.HERVKC4/README.md` | F | M |
 | B2 | RNA genes mode uses STAR's default multimapper cap (10): reads with more loci are dropped, which suppressed HERV signal in the HERVKC4 RNA-seq | `analysis/Vincendeau/HERVKC4/locus_quantification/README.md` | D | S |
 | B3 | MAPQ ≥ 30 removes transgene/TRE and young-repeat signal from `.filt.bw`; optional all-MAPQ bigwig | `analysis/LiLi/playground/05.*`, `06.*` READMEs | F | S |
@@ -39,8 +39,25 @@ them in commits and READMEs. Repeats-mode details and evidence: `repeat_strategy
 | S1 | samtools 1.22.1 → 1.25 (1.22.4 backport not on bioconda; 1.24/1.25 change `fixmate` on supplementary records, `markdup`, `stats`) | `env/build_ngs.v3.sh` | D | S + T1 |
 
 ## Repeats-mode redesign (XL, decided together; repeats mode stays frozen until then)
+
+**Decided 2026-11-25 (A0, mapping):** the focus is locus-level analysis.
+- Chromatin (ChIP/ATAC/CUT&RUN/CUT&Tag) is aligned with **bowtie2** (v3 genes-mode settings `--very-sensitive -X 2000
+  --dovetail`, end-to-end) in **one mapping mode**; STAR is dropped for chromatin. Evidence: Teissandier 2019 found no
+  accuracy difference between STAR and bowtie2 (STAR chosen for speed); on our ART set STAR "unique" (MAPQ 255) =
+  bowtie2 MAPQ ≥ 2 in yield and accuracy, while bowtie2's graded MAPQ gives stricter locus tiers (≥ 10: ≥ 99.6 %
+  correct for young L1/ERV) that STAR cannot; STAR took about 2× bowtie2's time on real 01.Angela data
+  (`analysis/NGS.analysis.v3.benchmark/README.md`, MAPQ curves; `repeat_strategy_open_questions.md`).
+- RNA stays on **STAR** (splicing).
+- Locus-level MAPQ tier: the SNP/indel and non-reference TE simulation (H2, done 2026-11-25) supports **MAPQ ≥ 10**:
+  at 129-like divergence it keeps young-L1 precision at 98.5 % (2×100; MAPQ ≥ 2: 88 %), and ≥ 30 adds no precision
+  but loses up to 75 % of young-element fragments. Non-reference TE insertions still place 13–21 % of their reads on
+  a reference copy at MAPQ ≥ 10; only strain information (G3) or long reads (H6) address that. Final choice of the
+  tier: with the module implementation. A family-level sub-analysis (how many copies drive a family effect; overlapping/nested
+  annotation) is done after mapping (A11).
+
 | ID | Item | Kind |
 |---|---|---|
+| A11 | Family-level sub-analysis after mapping: is a family effect carried by the majority of copies or by a few loci, and do those loci overlap other (nested, non-ERV) annotation? | F |
 | A1 | Multimapper allocation: random-1 (current), 1/n, EM (Telescope, TEtranscripts, SQuIRE, SalmonTE), signal-aware (Allo, SmartMap), T3E for family-level chromatin | D |
 | A2 | "Unique" rule for element-level counts: STAR MAPQ 255 vs bowtie2 MAPQ ≥ 30 (real data: family results unchanged, IAPEz element calls 680 → 395) | D |
 | A3 | Deduplication: duplicates only marked (issue 1), unreliable for multimappers (issue 2); sequence-level dedup, UMIs, or report both | D/B |
@@ -51,7 +68,7 @@ them in commits and READMEs. Repeats-mode details and evidence: `repeat_strategy
 | A8 | Input normalisation for family-level ChIP counts | F |
 | A9/A10 | Per-copy mappability (GenMap, k = 36–150); gain of PE and 2×100 for young L1/IAP/MERVL | A |
 | G1–G3 | Mouse reference (mhaESC, Francis 2025, mm39), RepBase ↔ Dfam names, strain background (129, polymorphic TEs) | D |
-| H1–H6 | Benchmarks: cross-reference simulation, SNP/indel injection, family-level correctness of random placement, alternative strategies on the ART set, 01.Angela RNA/H3K9me3 comparison, Nanopore ground truth | A |
+| H1–H6 | Benchmarks: cross-reference simulation, SNP/indel injection (H2, done 2026-11-25), family-level correctness of random placement, alternative strategies on the ART set, 01.Angela RNA/H3K9me3 comparison, Nanopore ground truth | A |
 
 The redesign is also when the code gets split into modules (see below): the new repeats strategy is written as its own
 module next to the frozen v2 one, selectable per project, and compared on T1/T2 and real data before it replaces it.
