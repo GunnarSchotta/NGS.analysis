@@ -143,10 +143,10 @@ data (above), T5 real-data check against the published v2 Setdb1 KO ATAC results
 (`analysis/NGS.analysis.v3.validation/T5_single_mode/README.md`: family level reproduced, element-level counts depend on
 the "unique" definition).
 
-**Not validated after the switch to MAPQ 10:** the T1 run (`tests/T1/make_v3_runs.sh submit`, then `compare_T1.py`)
-was done with `FILT_MAPQ = 30` (gene outputs identical to 3.2.0, RNA repeats commands identical to v2). With MAPQ 10
-R4a differs from 3.2.0 by design. Rerun T1 before releasing; it deletes the existing T1 run folders.
-Also open: T2 not rerun for 3.3.0; mapq10 test limited to n = 2 per mark.
+T1 was rerun with the final `FILT_MAPQ = 10` (2026-11-25, all samples complete): R4a differs from 3.2.0 by design
+(filtered fragments +1.6 to +5.7 %, TSS −0.2/−0.3, a few peak files), repeat tables identical to the MAPQ 30 run,
+RNA repeats commands identical to v2 (`analysis/NGS.analysis.v3.validation/README.md`, section 3.3.0; the MAPQ 30 T1 is
+in `T1/archive_3.3.0_mapq30/`). Still open: T2 not rerun for 3.3.0; the mapq10 test is limited to n = 2 per mark.
 
 ## Open questions for further development
 

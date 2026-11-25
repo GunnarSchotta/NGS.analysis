@@ -33,7 +33,9 @@ User guide: `docs/repeats.md`.
   - **Statistics that change relative to 3.2.0** (same data): `Filtered_fragments`/`Filtered_pct`, `Unique_fragments`/
     `Unique_pct` (cutoff = `.filt.bam` cutoff), NRF/PBC (computed on MAPQ ≥ 10 fragments), `TSS_score`, `FRiP_pct`,
     peak numbers and regions, `.filt.bw`. Compare 3.3.0 chromatin results only with 3.3.0 results.
-  - Not repeated after the switch: the T1 run (its 3.3.0 results used MAPQ 30).
+  - T1 rerun with the final cutoff (all 24 jobs complete): R4a differs from 3.2.0 as listed above (filtered fragments
+    +1.6 to +5.7 %), repeat tables identical to the MAPQ 30 run, RNA repeats commands identical to v2
+    (`analysis/NGS.analysis.v3.validation/README.md`, section 3.3.0).
 - **All-fragment set** (temporary `.all.bam`): proper pairs, duplicates removed, canonical chromosomes, no chrM, any
   MAPQ, blacklist kept. New statistic `All_fragments`.
 - **Bigwigs:** `.filt.bw` (CPM, MAPQ ≥ 10) and `.all.bw` (CPM, every fragment, multimappers at one random best locus);
