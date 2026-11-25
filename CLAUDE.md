@@ -129,6 +129,25 @@ only: MACS3 3.1.0, pinned genome size, 01.Angela histone thresholds (H3K27ac
 broad), ATAC `--call-summits` (peaks benchmark conclusions; checks in
 `analysis/NGS.analysis.v3.validation/T4_macs3.1/`).
 
+## Status 3.3.0 one chromatin mode (2026-11-25, committed on `v3`)
+
+User decisions (2026-11-25):
+- One bowtie2 mode for all chromatin (no backward compatibility); RNA keeps genes/repeats (repeats frozen).
+- `.filt.bam` is MAPQ ≥ 10 (was 30) so one BAM/bigwig serves peaks and locus plots; the locus tier uses the same
+  cutoff, there is no `.locus.bw` (evidence: `analysis/NGS.analysis.v3.peaks.benchmark/mapq10/README.md`).
+- No strain-specific mapping; mark uncertainty instead: locus_frac, young flag (divergence < 5 %), overlap flag,
+  sample `Young_locus_pct`.
+
+Evidence: element calibration (`analysis/NGS.analysis.v3.benchmark/element_calib/README.md`), MAPQ 10 vs 30 on real
+data (above), T5 real-data check against the published v2 Setdb1 KO ATAC results
+(`analysis/NGS.analysis.v3.validation/T5_single_mode/README.md`: family level reproduced, element-level counts depend on
+the "unique" definition).
+
+**Not validated after the switch to MAPQ 10:** the T1 run (`tests/T1/make_v3_runs.sh submit`, then `compare_T1.py`)
+was done with `FILT_MAPQ = 30` (gene outputs identical to 3.2.0, RNA repeats commands identical to v2). With MAPQ 10
+R4a differs from 3.2.0 by design. Rerun T1 before releasing; it deletes the existing T1 run folders.
+Also open: T2 not rerun for 3.3.0; mapq10 test limited to n = 2 per mark.
+
 ## Open questions for further development
 
 **Prioritised roadmap, the split decision and package status:** `docs/roadmap.md`

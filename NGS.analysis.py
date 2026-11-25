@@ -2,22 +2,26 @@
 """
 NGS.analysis v3 -- per-sample processing of ChIP-seq, ATAC-seq, CUT&RUN, CUT&Tag and RNA-seq data.
 
-Modes
-  genes    chromatin: bowtie2 (--very-sensitive -X 2000 --dovetail) -> MarkDuplicates -> filtered BAM
-           (proper pairs, duplicates removed, MAPQ>=30, canonical chromosomes, no chrM, blacklist removed)
-           -> CPM bigwig, peaks + FRiP, QC.  RNA: STAR + RSEM (as v2).
-  repeats  alignment, filtering, bigwigs, IAP coverage and featureCounts EXACTLY as in v2 (Teissandier 2019
-           STAR random-1 multimapper strategy); see docs/repeat_strategy_open_questions.md.
-All modes: Trimmomatic with minAdapterLength 1 + keepBothReads (PE), statistics in fragments (docs/stats_units.md).
-Chromatin (both modes, since 3.1.0): pairs touching the mitochondrial genome are split off straight after alignment,
-so <s>.bam and everything derived from it (duplicates, complexity, peaks, FRiP, bigwigs, counts) is nuclear only.
+Chromatin (ATAC, CHIP, CR, CT): ONE mode since 3.3.0 (pipeline_mode is ignored).
+  bowtie2 (--very-sensitive -X 2000 --dovetail; multimappers at one best locus, chosen at random) -> chrM split
+  -> MarkDuplicates -> two fragment sets, both proper pairs, duplicates removed, canonical chromosomes, no chrM:
+    filtered (.filt.bam: MAPQ >= FILT_MAPQ = 10, blacklist removed) -> CPM bigwig (also the locus bigwig), peaks +
+      FRiP, QC, CR/CT split;
+    all (MAPQ >= 0, temporary .all.bam)  -> all-fragment bigwig, repeat family/element counts in two tiers
+      (all fragments; locus tier MAPQ >= LOCUS_MAPQ = FILT_MAPQ) with per-element uncertainty flags, IAP coverage (mm10).
+  Locus tier and young flag: analysis/NGS.analysis.v3.benchmark/README.md (MAPQ curves, SNP / non-reference TE
+  simulation, element calibration); docs/repeats.md.
+RNA: genes = STAR + RSEM; repeats = STAR random-1 exactly as in v2 (frozen until the RNA redesign).
+All: Trimmomatic with minAdapterLength 1 + keepBothReads (PE), statistics in fragments (docs/stats_units.md).
+Chromatin (since 3.1.0): pairs touching the mitochondrial genome are split off straight after alignment, so <s>.bam
+and everything derived from it (duplicates, complexity, peaks, FRiP, bigwigs, counts) is nuclear only.
 Peaks (since 3.2.0): MACS3 3.1.0 with a numeric effective genome size (genomes/<g>.yaml, MACS3's mm/hs), 01.Angela
 settings (broad incl. H3K27ac: -q 1e-4 --broad-cutoff 0.2), ATAC with --call-summits (Peaks_n = regions).
 """
 
 __author__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 
 from argparse import ArgumentParser, SUPPRESS
 import os
@@ -37,7 +41,17 @@ sys.path.insert(0, SCRIPT_DIR)
 import ngs_qc as qc  # noqa: E402
 
 PROTOCOLS = ["CHIP", "CT", "CR", "RNA", "ATAC"]
-PIPELINEMODE = ["genes", "repeats"]
+PIPELINEMODE = ["genes", "repeats"]   # RNA only; chromatin has one mode since 3.3.0
+# chromatin MAPQ tiers (bowtie2 gives both mates of a concordant pair the same MAPQ, so a tier is per fragment)
+# 10 since 3.3.0 (user decision 2026-11-25, peaks benchmark mapq10/): same peaks/FRiP/replicate concordance as 30 for
+# ATAC and H3K27ac, slightly more concordant broad marks; one BAM and one bigwig serve peaks and locus plots.
+# Young-copy fragments are 0.1-1.1 % of all fragments of the extra ones. >= 98.5 % correct copy for young L1 at 0.2 %
+# strain divergence (2x100); MAPQ 30 adds no precision under divergence.
+FILT_MAPQ = 10      # .filt.bam (peaks, FRiP, filtered bigwig, QC)
+LOCUS_MAPQ = FILT_MAPQ   # repeat locus tier = the filtered set's cutoff
+# young = interspersed repeat < 5 % diverged from its consensus: at MAPQ >= LOCUS_MAPQ these elements receive
+# 5-15 % fragments from elsewhere under 129-like divergence, mostly from non-reference copies (element calibration)
+YOUNG_DIV_PCT = 5.0
 # broad marks; H3K27ac broad since 3.2.0 (01.Angela setting; narrow lost half of the domains, peaks benchmark)
 BROAD_TARGETS = {"h3k27me3", "h3k9me3", "h3k36me3", "h3k79me2", "h4k20me3", "h3k9me2", "h2ak119ub", "h3k27ac"}
 # MACS3 thresholds (3.2.0 = 01.Angela settings): narrow -q 0.01; broad -q 1e-4 with --broad-cutoff 0.2
@@ -51,8 +65,8 @@ parser = pypiper.add_pypiper_args(
     required=["input", "genome", "sample-name", "output-parent"])
 parser.add_argument("--protocol", dest="protocol", type=str, default=None, choices=PROTOCOLS,
                     help="NGS processing protocol.")
-parser.add_argument("--pipeline-mode", dest="pipeline_mode", type=str, default=None, choices=PIPELINEMODE,
-                    help="Pipeline run mode.")
+parser.add_argument("--pipeline-mode", dest="pipeline_mode", type=str, default="genes", choices=PIPELINEMODE,
+                    help="RNA only: genes (STAR + RSEM) or repeats (v2 STAR random-1). Ignored for chromatin.")
 parser.add_argument("--genome-config", dest="genome_config", type=str, default=None,
                     help="Genome resource YAML (default: genomes/<genome>.yaml next to this script).")
 parser.add_argument("--STAR_RNA_index", dest="STAR_RNA_index", type=str, default=None, help="STAR RNA index.")
@@ -109,6 +123,7 @@ TSS_BED = resource("tss_bed", args.refgene_tss)
 FAI = resource("fai", args.genome_index)
 REPEATS_SAF = resource("repeats_saf", args.repeats_SAF)
 REPEATS_SAFID = resource("repeats_safid", args.repeats_SAFid)
+REPEATS_ANNOT = resource("repeats_annotation")
 RSEM_INDEX = resource("rsem_index", args.rsem_index) if args.protocol == "RNA" else None
 BLACKLIST = resource("blacklist")
 MITO = GCFG.get("mito", "chrM")
@@ -121,7 +136,8 @@ os.makedirs(outfolder, exist_ok=True)
 _marker = os.path.join(outfolder, "NGS.analysis.version")
 if os.path.exists(_marker):
     _old = open(_marker).read().strip()
-    # major.minor: 3.1 changed <s>.bam (chrM removed), 3.2 the peak calls (existing peak files would be kept)
+    # major.minor: 3.1 changed <s>.bam (chrM removed), 3.2 the peak calls, 3.3 the chromatin mode (one bowtie2 mode
+    # with repeat outputs); pypiper would keep existing targets of an older version
     if _old.split(".")[:2] != __version__.split(".")[:2]:
         sys.exit(f"ERROR: {outfolder} contains results of NGS.analysis {_old}; v{__version__} would silently "
                  f"reuse them (pypiper skips existing targets). Use a new output folder.")
@@ -220,7 +236,7 @@ report("File_mb", round(ngstk.get_file_size([x for x in [args.input, args.input2
 report("Read_type", args.single_or_paired)
 report("Genome", args.genome_assembly)
 report("Protocol", args.protocol)
-report("Pipeline_mode", args.pipeline_mode)
+report("Pipeline_mode", args.pipeline_mode if args.protocol == "RNA" else "chromatin")
 report("Pipeline_version", __version__)
 
 raw_folder = os.path.join(outfolder, "raw")
@@ -319,16 +335,19 @@ mapping_genome_bam = prefix + "bam"
 mapping_genome_bam_bw = prefix + "bw"
 mapping_genome_bam_dedup = prefix + "dedup.bam"
 mapping_genome_bam_dedup_metrics = prefix + "dedup.metrics.txt"
-mapping_genome_bam_dedup_unique = prefix + "dedup.unique.bam"      # repeats mode (v2 name and content)
+mapping_genome_bam_dedup_unique = prefix + "dedup.unique.bam"      # RNA repeats mode (v2 name and content)
 mapping_genome_bam_dedup_unique_idx = prefix + "dedup.unique.bam.bai"
 mapping_genome_bam_dedup_unique_bw = prefix + "dedup.unique.bw"
-filt_bam = prefix + "filt.bam"                                     # genes mode chromatin
+filt_bam = prefix + "filt.bam"                                     # chromatin: MAPQ >= FILT_MAPQ
 filt_bw = prefix + "filt.bw"
+all_bam = prefix + "all.bam"                                       # chromatin: all MAPQ (temporary)
+all_bw = prefix + "all.bw"
 mito_bam = prefix + MITO + ".bam"                                  # split-off mitochondrial fragments (temporary)
 
-GENES_CHROMATIN = args.pipeline_mode == "genes" and args.protocol != "RNA"
-mapper = "STAR" if (args.pipeline_mode == "repeats" or args.protocol == "RNA") else "Bowtie2"
-UNIQUE_MAPQ = 255 if mapper == "STAR" else 30
+CHROMATIN = args.protocol != "RNA"
+RNA_REPEATS = args.protocol == "RNA" and args.pipeline_mode == "repeats"
+mapper = "Bowtie2" if CHROMATIN else "STAR"
+UNIQUE_MAPQ = FILT_MAPQ if CHROMATIN else 255
 # Chromatin: remove fragments touching chrM straight after alignment (aligned against the full genome, so MAPQ
 # arbitrates nuclear NUMT vs chrM), before <s>.bam is written. Duplication, complexity, peaks, FRiP, bigwigs and
 # counts are then nuclear only. RNA keeps chrM (mitochondrial transcripts are signal).
@@ -355,7 +374,7 @@ def check_alignment():
         bams = [mapping_genome_bam] + ([mito_bam] if SPLIT_MITO else [])
         trimmed = stat("Trimmed_fragments", int)
         aligned = sum(qc.count_fragments(SAMTOOLS, b, args.paired_end, flags_excl=2308) for b in bams)
-        uniq = sum(qc.count_fragments(SAMTOOLS, b, args.paired_end, flags_excl=2308, mapq=30) for b in bams)
+        uniq = sum(qc.count_fragments(SAMTOOLS, b, args.paired_end, flags_excl=2308, mapq=FILT_MAPQ) for b in bams)
         report("Aligned_fragments", aligned)
         report("Unique_fragments", uniq)
         report("Alignment_pct", round(100 * aligned / trimmed, 2) if trimmed else 0)
@@ -376,44 +395,24 @@ def check_alignment():
         report("Mito_pct", round(100 * mito / aligned, 2) if aligned else 0)
 
 
-if args.pipeline_mode == "repeats":
-    # ---- v2 STAR commands, unchanged (Teissandier 2019 strategy; do not edit without the repeat deep-dive).
-    # Only change since v2 (3.1.0): chromatin output passes the chrM split before sorting (--keep-mito: v2 as is) ----
-    if args.protocol == "RNA":
-        cmd = STAR + " --runThreadN " + str(pm.cores)
-        cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
-        cmd += " Unsorted --runMode alignReads --outFilterMultimapNmax 5000"
-        cmd += " --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random"
-        cmd += " --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --seedSearchStartLmax 30"
-        cmd += " --alignTranscriptsPerReadNmax 30000 --alignWindowsPerReadNmax 30000"
-        cmd += " --alignTranscriptsPerWindowNmax 300 --seedPerReadNmax 3000 --seedPerWindowNmax 300"
-        cmd += " --outSAMattrRGline ID:" + args.sample_name + " SM:" + args.sample_name
-        cmd += " --seedNoneLociPerWindow 1000 --genomeDir " + STAR_RNA_index
-        cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
-        if args.paired_end:
-            cmd += " " + unmap_fq2 + " "
-        cmd += " --outFileNamePrefix " + prefix
-    else:
-        cmd = STAR + " --runThreadN " + str(pm.cores)
-        cmd += " --outSAMtype BAM Unsorted --runMode alignReads --outFilterMultimapNmax 5000"
-        cmd += " --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random"
-        cmd += " --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --alignIntronMax 1"
-        cmd += " --alignMatesGapMax 350 --seedSearchStartLmax 30 --alignTranscriptsPerReadNmax 30000"
-        cmd += " --alignWindowsPerReadNmax 30000 --alignTranscriptsPerWindowNmax 300"
-        cmd += " --seedPerReadNmax 3000 --seedPerWindowNmax 300 --seedNoneLociPerWindow 1000"
-        cmd += " --outSAMattrRGline ID:" + args.sample_name + " SM:" + args.sample_name
-        cmd += " --genomeDir " + STAR_genome_index
-        cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
-        if args.paired_end:
-            cmd += " " + unmap_fq2 + " "
-        cmd += " --outFileNamePrefix " + prefix
-    if SPLIT_MITO:
-        cmd2 = (qc.mito_filter_cmd(SAMTOOLS, MITO, mito_bam, mapping_genome_bam_star) + " | "
-                + SAMTOOLS + " sort -o " + mapping_genome_bam + " -")
-    else:
-        cmd2 = SAMTOOLS + " sort " + mapping_genome_bam_star + " -o " + mapping_genome_bam
+if RNA_REPEATS:
+    # ---- v2 STAR RNA command, unchanged (Teissandier 2019 strategy; frozen until the RNA redesign) ----
+    cmd = STAR + " --runThreadN " + str(pm.cores)
+    cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
+    cmd += " Unsorted --runMode alignReads --outFilterMultimapNmax 5000"
+    cmd += " --outSAMmultNmax 1 --outFilterMismatchNmax 3 --outMultimapperOrder Random"
+    cmd += " --winAnchorMultimapNmax 5000 --alignEndsType EndToEnd --seedSearchStartLmax 30"
+    cmd += " --alignTranscriptsPerReadNmax 30000 --alignWindowsPerReadNmax 30000"
+    cmd += " --alignTranscriptsPerWindowNmax 300 --seedPerReadNmax 3000 --seedPerWindowNmax 300"
+    cmd += " --outSAMattrRGline ID:" + args.sample_name + " SM:" + args.sample_name
+    cmd += " --seedNoneLociPerWindow 1000 --genomeDir " + STAR_RNA_index
+    cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
+    if args.paired_end:
+        cmd += " " + unmap_fq2 + " "
+    cmd += " --outFileNamePrefix " + prefix
+    cmd2 = SAMTOOLS + " sort " + mapping_genome_bam_star + " -o " + mapping_genome_bam
     cmd3 = SAMTOOLS + " index " + mapping_genome_bam
-    pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment, shell=SPLIT_MITO or None)
+    pm.run([cmd, cmd2, cmd3], mapping_genome_bam, follow=check_alignment)
 elif args.protocol == "RNA":
     cmd = STAR + " --runThreadN " + str(pm.cores)
     cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
@@ -478,61 +477,72 @@ def check_duplicates():
 
 
 analysis_bam = None  # the BAM used for QC/peaks downstream
-if not (args.protocol == "RNA" and args.pipeline_mode == "genes"):
+if CHROMATIN or RNA_REPEATS:
     cmd = tools.picard + " MarkDuplicates --VALIDATION_STRINGENCY LENIENT -I " + mapping_genome_bam
     cmd += " -O " + mapping_genome_bam_dedup + " -M " + mapping_genome_bam_dedup_metrics
     pm.run(cmd, mapping_genome_bam_dedup, follow=check_duplicates)
 
-    if args.pipeline_mode == "repeats":
-        # ---- v2 filter, unchanged: unique (MAPQ 255) records; duplicates are MARKED, not removed ----
-        cmd = SAMTOOLS + " view -b -q 255 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
-        pm.run(cmd, mapping_genome_bam_dedup_unique)
-        pm.run(SAMTOOLS + " index " + mapping_genome_bam_dedup_unique, mapping_genome_bam_dedup_unique_idx)
-        analysis_bam = mapping_genome_bam_dedup_unique
-        report("Filtered_fragments", qc.count_fragments(SAMTOOLS, analysis_bam, args.paired_end, flags_excl=2308))
-        report("Filtered_nondup_fragments",
-               qc.count_fragments(SAMTOOLS, analysis_bam, args.paired_end, flags_excl=3332))
-        pm.report_object("BAM_dedup_unique", mapping_genome_bam_dedup_unique)
+if RNA_REPEATS:
+    # ---- v2 filter, unchanged: unique (MAPQ 255) records; duplicates are MARKED, not removed ----
+    cmd = SAMTOOLS + " view -b -q 255 " + mapping_genome_bam_dedup + " > " + mapping_genome_bam_dedup_unique
+    pm.run(cmd, mapping_genome_bam_dedup_unique)
+    pm.run(SAMTOOLS + " index " + mapping_genome_bam_dedup_unique, mapping_genome_bam_dedup_unique_idx)
+    analysis_bam = mapping_genome_bam_dedup_unique
+    report("Filtered_fragments", qc.count_fragments(SAMTOOLS, analysis_bam, args.paired_end, flags_excl=2308))
+    report("Filtered_nondup_fragments",
+           qc.count_fragments(SAMTOOLS, analysis_bam, args.paired_end, flags_excl=3332))
+    pm.report_object("BAM_dedup_unique", mapping_genome_bam_dedup_unique)
+elif CHROMATIN:
+    # ---- ENCODE-style filtered BAM (MAPQ >= FILT_MAPQ, blacklist removed) and the all-fragment BAM (MAPQ >= 0,
+    # temporary, for repeat counts and the all-fragment bigwig). Both: proper pairs, no duplicates, canonical, no chrM.
+    canon = qc.canonical_bed(FAI, CANONICAL, MITO, os.path.join(QC_folder, "canonical_chroms.bed"))
+    n = str(pm.cores)
+    ftmp = tempfile.mkdtemp(dir=map_genome_folder)
+    pm.clean_add(ftmp)
+    bl = (" | " + BEDTOOLS + " intersect -v -abam stdin -b " + BLACKLIST) if BLACKLIST else ""
+    if args.paired_end:
+        cmd = (SAMTOOLS + " view -u -f 2 -F 1804 -q " + str(FILT_MAPQ) + " -L " + canon + " " +
+               mapping_genome_bam_dedup + bl +
+               " | " + SAMTOOLS + " sort -n -@ " + n + " -m 1G -T " + ftmp + "/n -O BAM -" +
+               " | " + SAMTOOLS + " fixmate -r - -" +                        # drop mates of removed reads
+               " | " + SAMTOOLS + " view -u -f 2 -F 1804 -" +
+               " | " + SAMTOOLS + " sort -@ " + n + " -m 1G -T " + ftmp + "/c -o " + filt_bam + " -")
+        # flags are set on both mates (proper pair, duplicate), so no orphan mates: the coordinate order is kept
+        cmd_all = SAMTOOLS + " view -b -f 2 -F 1804 -L " + canon + " -o " + all_bam + " " + mapping_genome_bam_dedup
     else:
-        # ---- genes mode chromatin: ENCODE-style filtered BAM ----
-        canon = qc.canonical_bed(FAI, CANONICAL, MITO, os.path.join(QC_folder, "canonical_chroms.bed"))
-        n = str(pm.cores)
-        ftmp = tempfile.mkdtemp(dir=map_genome_folder)
-        pm.clean_add(ftmp)
-        bl = (" | " + BEDTOOLS + " intersect -v -abam stdin -b " + BLACKLIST) if BLACKLIST else ""
-        if args.paired_end:
-            cmd = (SAMTOOLS + " view -u -f 2 -F 1804 -q 30 -L " + canon + " " + mapping_genome_bam_dedup + bl +
-                   " | " + SAMTOOLS + " sort -n -@ " + n + " -m 1G -T " + ftmp + "/n -O BAM -" +
-                   " | " + SAMTOOLS + " fixmate -r - -" +                        # drop mates of removed reads
-                   " | " + SAMTOOLS + " view -u -f 2 -F 1804 -" +
-                   " | " + SAMTOOLS + " sort -@ " + n + " -m 1G -T " + ftmp + "/c -o " + filt_bam + " -")
-        else:
-            cmd = (SAMTOOLS + " view -u -F 1804 -q 30 -L " + canon + " " + mapping_genome_bam_dedup + bl +
-                   " | " + SAMTOOLS + " sort -@ " + n + " -m 1G -T " + ftmp + "/c -o " + filt_bam + " -")
-        pm.run([cmd, SAMTOOLS + " index " + filt_bam], filt_bam, shell=True)
-        analysis_bam = filt_bam
-        nf = qc.count_fragments(SAMTOOLS, filt_bam, args.paired_end)
-        report("Filtered_fragments", nf)
-        tr = stat("Trimmed_fragments", int)
-        report("Filtered_pct", round(100 * nf / tr, 2) if tr else 0)
-        pm.report_object("BAM_filtered", filt_bam)
+        cmd = (SAMTOOLS + " view -u -F 1804 -q " + str(FILT_MAPQ) + " -L " + canon + " " + mapping_genome_bam_dedup +
+               bl + " | " + SAMTOOLS + " sort -@ " + n + " -m 1G -T " + ftmp + "/c -o " + filt_bam + " -")
+        cmd_all = SAMTOOLS + " view -b -F 1804 -L " + canon + " -o " + all_bam + " " + mapping_genome_bam_dedup
+    pm.run([cmd, SAMTOOLS + " index " + filt_bam], filt_bam, shell=True)
+    analysis_bam = filt_bam
+    nf = qc.count_fragments(SAMTOOLS, filt_bam, args.paired_end)
+    report("Filtered_fragments", nf)
+    tr = stat("Trimmed_fragments", int)
+    report("Filtered_pct", round(100 * nf / tr, 2) if tr else 0)
+    pm.report_object("BAM_filtered", filt_bam)
+    pm.run([cmd_all, SAMTOOLS + " index " + all_bam], all_bam + ".bai")
+    pm.clean_add(all_bam)
+    pm.clean_add(all_bam + ".bai")
+    report("All_fragments", qc.count_fragments(SAMTOOLS, all_bam, args.paired_end))
 
-if args.protocol == "RNA" and args.pipeline_mode == "genes":
+if args.protocol == "RNA" and not RNA_REPEATS:
     cmd = tools.bamcoverage + " --bam " + mapping_genome_bam
     cmd += " -o " + mapping_genome_bam_bw + " --binSize 10 --normalizeUsing RPKM"
     pm.run(cmd, mapping_genome_bam_bw)
     pm.report_object("BigWig", mapping_genome_bam_bw)
-elif args.pipeline_mode == "repeats":
+elif RNA_REPEATS:
     cmd = tools.bamcoverage + " --bam " + mapping_genome_bam_dedup_unique
     cmd += " -o " + mapping_genome_bam_dedup_unique_bw + " --binSize 10 --normalizeUsing RPKM"
     pm.run(cmd, mapping_genome_bam_dedup_unique_bw)
     pm.report_object("BigWig_dedup", mapping_genome_bam_dedup_unique_bw)
 else:
+    # CPM, fragment-extended, each tier normalised to its own fragment count
     ext = " --extendReads" if args.paired_end else " --extendReads " + str(args.se_extend)
-    cmd = (tools.bamcoverage + " --bam " + filt_bam + " -o " + filt_bw + " --binSize 10 --normalizeUsing CPM" +
-           ext + " -p " + str(pm.cores))
-    pm.run(cmd, filt_bw)
+    bwc = " --binSize 10 --normalizeUsing CPM" + ext + " -p " + str(pm.cores)
+    pm.run(tools.bamcoverage + " --bam " + filt_bam + " -o " + filt_bw + bwc, filt_bw)
     pm.report_object("BigWig_filtered", filt_bw)
+    pm.run(tools.bamcoverage + " --bam " + all_bam + " -o " + all_bw + bwc, all_bw)
+    pm.report_object("BigWig_all", all_bw)
 
 pm.clean_add(mapping_genome_bam_dedup)
 
@@ -540,12 +550,8 @@ pm.clean_add(mapping_genome_bam_dedup)
 #                CUT&RUN / CUT&Tag: (sub)nucleosomal split                 #
 ############################################################################
 if (args.protocol == "CT" or args.protocol == "CR") and args.paired_end:
-    if args.pipeline_mode == "repeats":
-        # ---- v2, unchanged (note: TLEN 0 records end up in subnuc; deep-dive item) ----
-        src, tag, norm, extra, cond_sub = mapping_genome_bam_dedup_unique, "dedup.unique", "RPKM", "", "($9^2 < 14400)"
-    else:
-        src, tag, norm, extra = filt_bam, "filt", "CPM", " --extendReads -p " + str(pm.cores)
-        cond_sub = "($9^2 < 14400 && $9 != 0)"
+    src, tag, norm, extra = filt_bam, "filt", "CPM", " --extendReads -p " + str(pm.cores)
+    cond_sub = "($9^2 < 14400 && $9 != 0)"          # TLEN 0 records go to neither part
     for part, cond in [("nuc", "($9^2 >= 14400)"), ("subnuc", cond_sub)]:
         pbam, pbw = prefix + tag + "." + part + ".bam", prefix + tag + "." + part + ".bw"
         cmd = SAMTOOLS + " view -h " + src + " | awk \'substr($0,1,1)==\"@\" || " + cond + "\' | "
@@ -554,8 +560,7 @@ if (args.protocol == "CT" or args.protocol == "CR") and args.paired_end:
         pm.run(SAMTOOLS + " index " + pbam, pbam + ".bai")
         pm.run(tools.bamcoverage + " --bam " + pbam + " -o " + pbw + " --binSize 10 --normalizeUsing " + norm + extra,
                pbw)
-        if args.pipeline_mode == "genes":
-            pm.report_object("BigWig_filtered_" + part, pbw)
+        pm.report_object("BigWig_filtered_" + part, pbw)
 
 ############################################################################
 #                QC: insert size, library complexity, TSS                  #
@@ -610,7 +615,7 @@ if args.protocol != "RNA" and analysis_bam and peak_mode != "none":
     ptype = "broadPeak" if peak_mode == "broad" else "narrowPeak"
     peaks = os.path.join(peak_folder, args.sample_name + "_peaks." + ptype)
     peaks_nobl = os.path.join(peak_folder, args.sample_name + "_peaks_noBL." + ptype)
-    keepdup = "all" if args.pipeline_mode == "genes" else "1"   # repeats BAM still contains (marked) duplicates
+    keepdup = "all"                                     # duplicates already removed from .filt.bam
     cmd = MACS3 + " callpeak -t " + analysis_bam + " -n " + args.sample_name + " --outdir " + peak_folder
     cmd += " -g " + MACS_GSIZE + " --keep-dup " + keepdup
     cmd += " -f BAMPE" if args.paired_end else " -f BAM --nomodel --extsize " + str(args.se_extend)
@@ -646,13 +651,76 @@ if args.protocol != "RNA" and analysis_bam and peak_mode != "none":
             report("FRiP_pct", round(100 * s.get("Assigned", 0) / usable, 2) if usable else 0)
         pm.report_object("Peaks", peaks_nobl)
 
-#STOP pipeline if genes mode, otherwise continue with repeats coverage
-if args.pipeline_mode == "genes":
+############################################################################
+#        Chromatin repeats: family / element counts, flags, IAP coverage   #
+############################################################################
+if CHROMATIN and REPEATS_SAF and REPEATS_SAFID:
+    pm.timestamp("### Repeat counts (all fragments / locus tier MAPQ >= " + str(LOCUS_MAPQ) + ")")
+    rep_folder = os.path.join(outfolder, "repeats_" + args.genome_assembly)
+    ngstk.make_dir(rep_folder)
+    rp = os.path.join(rep_folder, args.sample_name + ".")
+    # fragments (PE: --countReadPairs) of the all-fragment BAM; -O: a fragment overlapping several annotation entries
+    # (nested / overlapping) counts for each of them; locus tier: -Q (concordant mates share their MAPQ)
+    fc = (tools.featureCounts + " -F SAF -O -T " + str(pm.cores) +
+          (" -p --countReadPairs -B -C" if args.paired_end else ""))
+    out_fc = {}
+    for level, saf in (("family", REPEATS_SAF), ("element", REPEATS_SAFID)):
+        for tier, q in (("all", ""), ("locus", " -Q " + str(LOCUS_MAPQ))):
+            f = rp + level + "." + tier + ".fc.txt"
+            pm.run(fc + q + " -a " + saf + " -o " + f + " " + all_bam, f + ".summary")
+            out_fc[(level, tier)] = f
+    elements_tsv = rp + "repeats.elements.tsv.gz"
+    family_tsv = rp + "repeats.family.tsv"
+    annot = REPEATS_ANNOT if REPEATS_ANNOT and os.path.exists(REPEATS_ANNOT) else None
+    if not annot:
+        pm.info("No repeats_annotation for " + args.genome_assembly + ": element table without divergence/flags")
+    if not os.path.exists(elements_tsv):
+        pm.timestamp("### Repeat tables (+ annotation, flags)")
+        rsum = qc.repeat_tables(out_fc[("element", "all")], out_fc[("element", "locus")], out_fc[("family", "all")],
+                                out_fc[("family", "locus")], annot, elements_tsv + ".tmp.gz", family_tsv,
+                                YOUNG_DIV_PCT)
+        os.replace(elements_tsv + ".tmp.gz", elements_tsv)
+        if annot:
+            tot, young = rsum["element_locus_assignments"], rsum["element_young_locus_assignments"]
+            report("Young_locus_pct", round(100 * young / tot, 2) if tot else 0)
+    fa = qc.parse_featurecounts_summary(out_fc[("family", "all")] + ".summary")
+    fl = qc.parse_featurecounts_summary(out_fc[("family", "locus")] + ".summary")
+    nall = stat("All_fragments", int)
+    report("Repeat_fragments", fa.get("Assigned", 0))
+    report("Repeat_pct", round(100 * fa.get("Assigned", 0) / nall, 2) if nall else 0)
+    report("Repeat_locus_fragments", fl.get("Assigned", 0))
+    report("Repeat_locus_pct", round(100 * fl.get("Assigned", 0) / fa["Assigned"], 2) if fa.get("Assigned") else 0)
+    pm.report_object("Repeat_family_table", family_tsv)
+    pm.report_object("Repeat_element_table", elements_tsv)
+    for f in out_fc.values():
+        pm.clean_add(f)          # merged into the two tables (the .summary files are kept)
+
+    # IAP gag coverage (mm10 resource): per-base read depth of the all-fragment BAM (every mate counts, as in v2),
+    # per million all-fragment-BAM fragments (v2: per million STAR unique + multi + too-many-loci pairs, incl. chrM)
+    if GCFG.get("iap_plus_bed") and nall:
+        pm.timestamp("### IAP Coverage: ")
+        iap_folder = os.path.join(outfolder, "IAP_coverage")
+        ngstk.make_dir(iap_folder)
+        IAP_plus = os.path.join(iap_folder, args.sample_name + ".IAP.plus.txt")
+        IAP_minus = os.path.join(iap_folder, args.sample_name + ".IAP.minus.txt")
+        IAP_norm_coverage = os.path.join(iap_folder, args.sample_name + ".IAP.norm.coverage.txt")
+        for bed, out in ((GCFG["iap_plus_bed"], IAP_plus), (GCFG["iap_minus_bed"], IAP_minus)):
+            pm.run(BEDTOOLS + " coverage -g " + FAI + " -sorted -d -a " + tool_path(bed) + " -b " + all_bam +
+                   " > " + out, out, shell=True)
+        cmd = "tac " + IAP_minus + " | cat " + IAP_plus
+        cmd += " | awk -vN=15413 '{s[(NR-1)%N]+=$5}END{for(i=0;i<N;i++){print s[i]/" + str(nall / 1e6) + "}}'"
+        cmd += " > " + IAP_norm_coverage
+        pm.run(cmd, IAP_norm_coverage, shell=True)
+        pm.report_object("IAP_coverage", IAP_norm_coverage)
+        pm.clean_add(IAP_plus)
+        pm.clean_add(IAP_minus)
+
+if not RNA_REPEATS:
     pm.stop_pipeline()
     sys.exit()
 
 ############################################################################
-#                          IAP Coverage (v2, unchanged)                    #
+#             RNA repeats mode: IAP Coverage (v2, unchanged)               #
 ############################################################################
 if args.genome_assembly == "mm10" and GCFG.get("iap_plus_bed"):
     pm.timestamp("### IAP Coverage: ")
@@ -678,7 +746,7 @@ if args.genome_assembly == "mm10" and GCFG.get("iap_plus_bed"):
     pm.clean_add(IAP_minus)
 
 ############################################################################
-#                          Feature Counts (v2, unchanged)                  #
+#             RNA repeats mode: Feature Counts (v2, unchanged)             #
 ############################################################################
 pm.timestamp("### Feature Counts: ")
 feature_counts_folder = os.path.join(outfolder, "feature_counts")

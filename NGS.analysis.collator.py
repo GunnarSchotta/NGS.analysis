@@ -87,9 +87,19 @@ def collect_project_results(project_name: str, summary_dir: str) -> dict[str, di
             "BAM files per sample",
             "file",
         ),
+        "repeats_family_file": (
+            os.path.join(summary_path, f"{project_name}_repeats_family_summary.rds"),
+            "Repeat family counts, chromatin (all fragments / locus tier)",
+            "file",
+        ),
+        "repeats_elements_file": (
+            os.path.join(summary_path, f"{project_name}_repeats_elements_summary.rds"),
+            "Repeat element counts, chromatin (all fragments / locus tier, annotation + flags)",
+            "file",
+        ),
         "feature_counts_file": (
             os.path.join(summary_path, f"{project_name}_fc_summary.rds"),
-            "FeatureCounts classes summary",
+            "FeatureCounts classes summary (RNA repeats mode)",
             "file",
         ),
         "feature_counts_id_file": (

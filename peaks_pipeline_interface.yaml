@@ -12,7 +12,6 @@ sample_interface:
     --cores {compute.cores}
     --sample-name {sample.sample_name}
     --genome {sample.genome}
-    --pipeline-mode {project.pipeline_mode}
     --single-or-paired {sample.read_type}
     --protocol {sample.protocol}
     {% if sample.genome_config is defined and sample.genome_config %} --genome-config {sample.genome_config} {% endif %}

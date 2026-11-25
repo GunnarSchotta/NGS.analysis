@@ -1,6 +1,9 @@
 # Repeat analysis: open questions for a later deep-dive
 
-In v3, **repeats mode is unchanged from v2.** It still uses the Teissandier et al. 2019 strategy:
+**Since 3.3.0, chromatin samples no longer use repeats mode:** they are aligned once with bowtie2 and get repeat
+counts in two MAPQ tiers with per-element uncertainty flags (`docs/repeats.md`). Issues 1, 3, 5, 6 and 11 below are
+fixed for chromatin there; 2 (duplicates of multimappers) and the allocation question remain. The text below
+describes **RNA repeats mode**, which is unchanged from v2 and still uses the Teissandier et al. 2019 strategy:
 - STAR, reporting one random locus per multimapper;
 - a `-q 255` unique BAM, with duplicates marked but not removed;
 - featureCounts at family level (all reads) and at element level (unique reads);
@@ -81,6 +84,11 @@ The ART benchmark (`analysis/NGS.analysis.v3.benchmark/README.md`) simulates rea
 - **Strain divergence and non-reference TE insertions (H2, 2026-11-25;** `analysis/NGS.analysis.v3.benchmark/README.md`, `snp/`**):** mm10 chr1 with 0–0.7 % SNPs (+ indels) and 300 non-reference young-TE copies, bowtie2 v3 settings.
   - Young-L1 precision at 129-like divergence (0.2 %, 2×100): MAPQ ≥ 2 88 %, ≥ 10 98.5 %, ≥ 30 98.6 %; 2×50: 83 / 94 / 94 %. MAPQ ≥ 30 adds no precision over ≥ 10 under divergence but loses up to 75 % of young-element fragments. Recommended locus-level cutoff: **MAPQ ≥ 10**.
   - Reads from non-reference copies: 19–21 % (2×100) / 13–14 % (2×50) are placed on a reference copy with MAPQ ≥ 10, 6–9 % with ≥ 30. A MAPQ cutoff cannot remove false loci created by polymorphic insertions (G3, H6).
+- **Element calibration: which elements receive wrong fragments (2026-11-25;** `analysis/NGS.analysis.v3.benchmark/element_calib/`**):** the SNP/non-reference TE simulation, scored by the RepeatMasker divergence of the element where a fragment *lands*.
+  - bowtie2 gives both mates of a concordant pair the same MAPQ: R1, min and max of the mates give identical tiers.
+  - At MAPQ ≥ 10 and 0.2 % strain divergence (2×100), L1/LTR elements < 5 % diverged receive 5.5–11 % wrong fragments; 5–8 %: 0.6 %; 8–12 %: 0.07 %. 80–97 % of the wrong fragments come from non-reference copies. Without strain divergence the same young bins receive 0.1–0.4 %. 2×50: 7–15 % (< 5 %), 1.1 % (5–8 %).
+  - → 3.3.0 `young` flag = divergence < 5 %.
+- **STAR random-1 placement is not reproducible between runs** with several threads (STAR documents this for `--outMultimapperOrder Random`): in the 3.3.0 T1 run, about half of the 23,401 RNA multimappers were placed differently from the v2 run with identical commands (IAP coverage −17 %, r = 0.68 at 200k fragments). bowtie2's choice is seeded per read and reproducible.
 - **T2T, human (hs1, done):** with reads simulated from the reference itself, hs1 and hg38 give the same young-TE unique fractions and TP rates once satellites are excluded. hs1 adds satellite arrays that are not uniquely mappable.
 - **T2T, mouse (mhaESC, done):**
   - Excluding satellites, mhaESC is 2–3 points less uniquely mappable than mm10, at unchanged TP.
@@ -92,7 +100,6 @@ The ART benchmark (`analysis/NGS.analysis.v3.benchmark/README.md`) simulates rea
 
 - **ART benchmark:**
   - a **cross-reference** simulation (reads from hs1 / mhaESC aligned to hg38 / mm10), which would measure the expected real T2T benefit: reads from sequence missing in the old reference being forced onto wrong paralogues;
-  - injected SNPs and indels (strain divergence);
   - family-level (not only locus-level) correctness of random placement;
   - alternatives (bowtie2 `-k`, Allo, EM).
 - Real data: Setdb1 KO RNA-seq and H3K9me3 ChIP (01.Angela), comparing family- and element-level results between strategies.

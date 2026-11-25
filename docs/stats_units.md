@@ -18,7 +18,7 @@ The exceptions are `Raw_reads`, `Fastq_reads` and `PF_reads`. pypiper reports th
 | `Mitochondrial_reads_percentage` | records / pairs (STAR) or records / trimmed reads (bowtie2) | `Mito_pct` = mito fragments / aligned fragments, same for both aligners |
 | `Percent_duplication` | 0–1 fraction | `Duplication_pct` (×100) |
 | `Read_pair_duplicates` / `Read_duplicates` | different units PE vs SE | `Duplicate_fragments` |
-| `Mapped_reads_filtered` | records in a BAM that still contained duplicates | `Filtered_fragments` (+ `Filtered_nondup_fragments` in repeats mode) |
+| `Mapped_reads_filtered` | records in a BAM that still contained duplicates | `Filtered_fragments` (+ `Filtered_nondup_fragments` in RNA repeats mode) |
 
 ## Definitions
 
@@ -26,7 +26,7 @@ The exceptions are `Raw_reads`, `Fastq_reads` and `PF_reads`. pypiper reports th
 - **Alignment:**
   - **bowtie2:**
     - `Aligned_fragments` = primary R1 records that are mapped.
-    - `Unique_fragments` = the same at MAPQ ≥ 30.
+    - `Unique_fragments` = the same at MAPQ ≥ 10 (the `.filt.bam` cutoff; 30 up to 3.2.0).
     - `Aligned_proper_pairs` = properly paired.
     - Percentages are relative to `Trimmed_fragments`.
   - **STAR:**
@@ -43,8 +43,13 @@ The exceptions are `Raw_reads`, `Fastq_reads` and `PF_reads`. pypiper reports th
   - 3.0 kept chrM for all protocols. Its `Duplication_pct` and NRF/PBC were dominated by the near-saturated chrM reads in ATAC (Vincendeau ATAC: 66% reported vs about 43% nuclear), and repeats-mode peaks/FRiP/bigwigs included chrM.
 - **Duplicates:** Picard MarkDuplicates metrics on `<s>.bam`, parsed by header. `Duplication_pct` = Picard `PERCENT_DUPLICATION` × 100. With `Mito_filter: removed` this is the nuclear duplication rate.
 - **Filtered fragments:** the analysis BAM.
-  - **genes mode:** `.filt.bam`. It keeps proper pairs; removes duplicates, MAPQ < 30 reads, non-canonical chromosomes, the mito chromosome and blacklist regions; and drops orphan mates (fixmate). `Filtered_pct` = relative to trimmed fragments.
-  - **repeats mode:** `.dedup.unique.bam`, as in v2: unique (MAPQ 255) alignments, with duplicates **marked but kept**. `Filtered_nondup_fragments` excludes them. Chromatin 3.1+: nuclear only.
+  - **chromatin:** `.filt.bam`. It keeps proper pairs; removes duplicates, MAPQ < 30 reads, non-canonical chromosomes, the mito chromosome and blacklist regions; and drops orphan mates (fixmate). `Filtered_pct` = relative to trimmed fragments.
+  - **RNA repeats mode:** `.dedup.unique.bam`, as in v2: unique (MAPQ 255) alignments, with duplicates **marked but kept**. `Filtered_nondup_fragments` excludes them.
+- **All-fragment set and repeats** (chromatin, 3.3.0+; `docs/repeats.md`):
+  - `All_fragments` = fragments of the temporary `.all.bam`: proper pairs, duplicates removed, canonical chromosomes, no chrM, **any MAPQ**, blacklist kept. Basis of the repeat counts, `.all.bw` and IAP coverage.
+  - `Repeat_fragments` = fragments of that set overlapping at least one RepeatMasker entry (featureCounts family level, `-O`, `--countReadPairs`); `Repeat_pct` = / `All_fragments`.
+  - `Repeat_locus_fragments` = the same at MAPQ ≥ 10 (locus tier); `Repeat_locus_pct` = / `Repeat_fragments`.
+  - `Young_locus_pct` = locus-tier element assignments on young elements (< 5 % divergence from consensus, interspersed repeats) / all locus-tier element assignments. A fragment overlapping two elements is one assignment to each (`-O`).
 - **Insert size:** proper-pair R1 records of the analysis BAM, |TLEN|. Reported as median, mode, and % below 150, 150–299 and ≥ 300 bp. A plot is produced.
 - **Library complexity** (ENCODE):
   - Computed on uniquely aligned fragments of `<s>.bam`, *before* duplicate removal (chromatin 3.1+: nuclear only).

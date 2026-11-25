@@ -7,6 +7,12 @@ R1  v2_repeats_A vs v3_repeats_legacy      v3 repeats mode with v2 trimming and 
      - featureCounts family (.fc.txt), element (.fc.id.txt), IAP coverage
 R2  v3_repeats_legacy vs v3_repeats        effect of the new trimming and (3.1+) the chrM split on repeats outputs
 R3  v2_genes vs v3_genes                   genes mode: fragments, bigwig correlation (1 kb bins)
+R4  (3.3.0, one chromatin mode) a: v3_genes_3.2.0 vs v3_genes   gene outputs (stats, peaks, filtered bigwig); identical
+                                   only while FILT_MAPQ = 30; with FILT_MAPQ = 10 (final 3.3.0) the filtered set,
+                                   Filtered_fragments, NRF/PBC, TSS_score, peaks and FRiP differ by design
+                                b: v2_repeats_A vs v3_genes     chromatin repeat counts, bowtie2 vs v2 STAR:
+                                   family frag_all vs v2 .fc.txt (v2 counts mates, keeps duplicates), element
+                                   frag_locus vs v2 .fc.id.txt (STAR unique); Repeat_* / Young_locus_pct stats
 """
 import os
 import re
@@ -148,4 +154,75 @@ for s in names:
 r3 = pd.DataFrame(rows)
 r3.to_csv(os.path.join(OUT, "genes_R3.tsv"), sep="\t", index=False)
 log(r3.to_string(index=False))
+
+# ---------------------------------------------------------------- R4 (3.3.0)
+def stats(run, s):
+    import yaml
+    f = os.path.join(sdir(run, s), "stats.yaml")
+    if not os.path.exists(f):
+        return {}
+    y = yaml.safe_load(open(f))
+    return y[next(iter(y))]["sample"][s]
+
+
+def file_md5(f):
+    import hashlib
+    return hashlib.md5(open(f, "rb").read()).hexdigest() if os.path.exists(f) else None
+
+
+if os.path.isdir(os.path.join(R, "v3_genes_3.2.0")):
+    log("\n## R4a gene outputs: 3.2.0 vs 3.3.0 (v3_genes)\n")
+    keys = ["Filtered_fragments", "Duplication_pct", "NRF", "PBC1", "Insert_size_median", "TSS_score", "Peaks_n",
+            "Peak_summits_n", "FRiP_pct"]
+    rows = []
+    for s in names:
+        a, b = stats("v3_genes_3.2.0", s), stats("v3_genes", s)
+        if b.get("Protocol") == "RNA":
+            continue
+        row = {"sample": s}
+        row["stats_identical"] = all(a.get(k) == b.get(k) for k in keys)
+        row["differing"] = ",".join(f"{k}:{a.get(k)}->{b.get(k)}" for k in keys if a.get(k) != b.get(k)) or "-"
+        g = b.get("Genome", "mm10")
+        pk = [f for f in os.listdir(os.path.join(sdir("v3_genes", s), "peaks_" + g))
+              if "_peaks_noBL." in f and f.endswith("Peak")] if os.path.isdir(os.path.join(sdir("v3_genes", s), "peaks_" + g)) else []
+        row["peaks_identical"] = all(file_md5(os.path.join(sdir("v3_genes_3.2.0", s), "peaks_" + g, f)) ==
+                                     file_md5(os.path.join(sdir("v3_genes", s), "peaks_" + g, f)) for f in pk) if pk else None
+        rows.append(row)
+    r4a = pd.DataFrame(rows)
+    r4a.to_csv(os.path.join(OUT, "R4a_genes_3.2_vs_3.3.tsv"), sep="\t", index=False)
+    log(r4a.to_string(index=False))
+
+log("\n## R4b chromatin repeats: v2 STAR repeats mode (v2_repeats_A) vs 3.3.0 bowtie2 (v3_genes)\n")
+rows = []
+for s in names:
+    st = stats("v3_genes", s)
+    if not st or st.get("Protocol") == "RNA":
+        continue
+    g = st.get("Genome", "mm10")
+    d = os.path.join(sdir("v3_genes", s), "repeats_" + g)
+    fam_f, el_f = os.path.join(d, s + ".repeats.family.tsv"), os.path.join(d, s + ".repeats.elements.tsv.gz")
+    row = {"sample": s, "All_fragments": st.get("All_fragments"), "Repeat_pct": st.get("Repeat_pct"),
+           "Repeat_locus_pct": st.get("Repeat_locus_pct"), "Young_locus_pct": st.get("Young_locus_pct"),
+           "tables": os.path.exists(fam_f) and os.path.exists(el_f)}
+    if row["tables"]:
+        fam = pd.read_csv(fam_f, sep="\t").set_index("family")
+        el = pd.read_csv(el_f, sep="\t").set_index("element_id")
+        row["elements_with_frag"] = len(el)
+        row["young_elements_pct"] = round(100 * el["flags"].str.contains("young").mean(), 2)
+        v2f, v2e = read_fc("v2_repeats_A", s, "family"), read_fc("v2_repeats_A", s, "element")
+        if v2f is not None:
+            j = pd.concat([v2f, fam.frag_all], axis=1, keys=["v2", "v3"]).fillna(0)
+            j = j[(j.v2 + j.v3) > 0]
+            row["family_v3_over_v2_total"] = round(j.v3.sum() / j.v2.sum(), 3)
+            big = j[(j.v2 + j.v3) / 2 >= 50]
+            row["family_pearson_log_ge50"] = round(float(np.corrcoef(np.log1p(big.v2), np.log1p(big.v3))[0, 1]), 4)
+        if v2e is not None:
+            j = pd.concat([v2e, el.frag_locus], axis=1, keys=["v2", "v3"]).fillna(0)
+            j = j[(j.v2 + j.v3) > 0]
+            row["element_v3locus_over_v2unique_total"] = round(j.v3.sum() / j.v2.sum(), 3)
+            row["element_pearson_log"] = round(float(np.corrcoef(np.log1p(j.v2), np.log1p(j.v3))[0, 1]), 4)
+    rows.append(row)
+r4b = pd.DataFrame(rows)
+r4b.to_csv(os.path.join(OUT, "R4b_repeats_v2_vs_3.3.tsv"), sep="\t", index=False)
+log(r4b.to_string(index=False))
 open(os.path.join(OUT, "compare_report.txt"), "w").write("\n".join(lines) + "\n")

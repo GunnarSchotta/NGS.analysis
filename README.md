@@ -6,32 +6,35 @@ It is built on [pypiper](http://pypiper.databio.org/en/latest/) and submitted to
 
 **Changes from v2:** see `CHANGELOG.md`.
 
-**Modes**
-- **`genes`:**
-  - chromatin: bowtie2 → ENCODE-style filtered BAM → CPM bigwig, peaks + FRiP, QC;
-  - RNA: STAR + RSEM.
-- **`repeats`:** mapping and repeat quantification follow [Teissandier et al. 2019](https://mobilednajournal.biomedcentral.com/articles/10.1186/s13100-019-0192-1). This is unchanged from v2 except that chromatin samples lose their chrM fragments before `<s>.bam` (3.1). Open questions are in `docs/repeat_strategy_open_questions.md`; the overall development plan is in `docs/roadmap.md`.
-  - STAR reports one random locus per multimapper.
-  - featureCounts counts at family level (all reads) and element level (unique reads).
-  - IAP gag coverage is computed for mm10.
+**Chromatin** (ATAC, CHIP, CR, CT): **one mode** since 3.3.0. bowtie2 alignment → gene outputs (ENCODE-style
+filtered BAM, CPM bigwig, peaks + FRiP, QC) **and** repeat outputs (family and element counts in two MAPQ tiers,
+per-element uncertainty flags, IAP coverage) from the same alignment. Details and interpretation: `docs/repeats.md`.
+
+**RNA:** `pipeline_mode` (project config) selects
+- **`genes`:** STAR + RSEM;
+- **`repeats`:** STAR random-1 multimapper placement and featureCounts exactly as in v2
+  ([Teissandier et al. 2019](https://mobilednajournal.biomedcentral.com/articles/10.1186/s13100-019-0192-1)), frozen
+  until the RNA redesign.
+
+Open questions: `docs/repeat_strategy_open_questions.md`; development plan: `docs/roadmap.md`.
 
 **Protocols** (`protocol` column): CHIP, ATAC, CR, CT, RNA.
 
 ## What the pipeline does
 
-| Step | genes mode | repeats mode |
+| Step | Chromatin | RNA |
 |---|---|---|
-| Trimming (all modes) | Trimmomatic `ILLUMINACLIP:<Nextera or TruSeq>:2:30:10:1:true MINLEN:30` (PE: adapter overhangs clipped down to 1 nt, both reads of short fragments kept); SE: `:2:30:7` | same |
-| Alignment, chromatin | `bowtie2 --very-sensitive -X 2000 --dovetail` | STAR, one random locus per multimapper (v2 settings) |
-| Alignment, RNA | STAR (default multimapping) + RSEM | STAR multimapper settings + RSEM |
-| chrM (chromatin, 3.1+) | fragments with the read or mate on chrM are split off before `<s>.bam` is written (aligned against the full genome; `Mito_fragments`/`Mito_pct` reported). RNA keeps chrM | same |
-| Duplicates | Picard MarkDuplicates on `<s>.bam` (chromatin: nuclear only) | Picard MarkDuplicates (marked only) |
-| Analysis BAM | `<s>.filt.bam`: proper pairs, duplicates **removed**, MAPQ ≥ 30, canonical chromosomes, no chrM, blacklist removed, orphan mates removed | `<s>.dedup.unique.bam`: MAPQ 255, duplicates **marked, not removed** (v2) |
-| Bigwig | `<s>.filt.bw` (CPM, fragment-extended); RNA: `<s>.bw` | `<s>.dedup.unique.bw` (RPKM, v2) |
-| CR/CT | `.filt.nuc/.subnuc` BAMs + bigwigs (fragments ≥ / < 120 bp) | `.dedup.unique.nuc/.subnuc` (v2) |
-| QC | insert size and TSS score (ATAC) on the analysis BAM; library complexity (NRF/PBC) and duplication on `<s>.bam`; mito % | same (analysis BAM = `.dedup.unique.bam`) |
-| Peaks | MACS3 `--keep-dup all` (duplicates already removed), narrow `-q 0.01` / broad `-q 1e-4 --broad-cutoff 0.2` (`peak_mode`, `auto` from `target`), ATAC `--call-summits`, numeric genome size from `genomes/<g>.yaml`, blacklist-filtered, FRiP. Per-sample peaks have **no control**: for histone marks they are QC only, use `NGS.peaks` (step 4) for analysis | same, on the unique BAM with `--keep-dup 1` (duplicates only marked) |
-| Repeats | – | featureCounts family / element counts, IAP coverage (mm10) |
+| Trimming | Trimmomatic `ILLUMINACLIP:<Nextera or TruSeq>:2:30:10:1:true MINLEN:30` (PE: adapter overhangs clipped down to 1 nt, both reads of short fragments kept); SE: `:2:30:7` | same |
+| Alignment | `bowtie2 --very-sensitive -X 2000 --dovetail`; a multimapper is placed at one of its best loci, chosen at random (deterministic per read) | genes: STAR (default multimapping) + RSEM; repeats: STAR v2 multimapper settings |
+| chrM | fragments with the read or mate on chrM are split off before `<s>.bam` is written (aligned against the full genome; `Mito_fragments`/`Mito_pct`) | kept |
+| Duplicates | Picard MarkDuplicates on `<s>.bam` (nuclear) | repeats: marked only (v2) |
+| Filtered set | `<s>.filt.bam`: proper pairs, duplicates **removed**, MAPQ ≥ 10, canonical chromosomes, no chrM, blacklist removed, orphan mates removed | repeats: `<s>.dedup.unique.bam` (MAPQ 255, duplicates marked; v2) |
+| All-fragment set | `<s>.all.bam` (temporary): as the filtered set but **any MAPQ** and blacklist kept | – |
+| Bigwigs | `<s>.filt.bw` (CPM, fragment-extended, MAPQ ≥ 10: also the bigwig for locus plots), `<s>.all.bw` (all fragments) | genes: `<s>.bw` (RPKM); repeats: `<s>.dedup.unique.bw` (v2) |
+| CR/CT | `.filt.nuc/.subnuc` BAMs + bigwigs (fragments ≥ / < 120 bp) | – |
+| QC | insert size and TSS score (ATAC) on the filtered BAM; library complexity (NRF/PBC) and duplication on `<s>.bam`; mito % | – |
+| Peaks | MACS3 `--keep-dup all`, narrow `-q 0.01` / broad `-q 1e-4 --broad-cutoff 0.2` (`peak_mode`, `auto` from `target`), ATAC `--call-summits`, numeric genome size from `genomes/<g>.yaml`, blacklist-filtered, FRiP. Per-sample peaks have **no control**: for histone marks they are QC only, use `NGS.peaks` (step 4) | – |
+| Repeats | `repeats_<genome>/`: family and element tables, tiers all / locus (MAPQ ≥ 10), flags `young` / `overlap` / `blacklist`, `locus_frac`; IAP coverage (mm10) | repeats: featureCounts family / element counts, IAP coverage (v2) |
 
 All statistics are in **fragments** (PE pairs, SE reads), and percentages are on a 0–100 scale. Every key is
 defined in `docs/stats_units.md`.
@@ -65,14 +68,17 @@ defined in `docs/stats_units.md`.
    Peak parameters as in the main run (01.Angela settings, validated in `analysis/NGS.analysis.v3.peaks.benchmark/`).
    `peaks_ctrl_<genome>/` of another major.minor version is refused; remove it to recall peaks.
 
-v3 refuses to write into an output folder that contains results of another major.minor version (v2, or 3.1 when
-running 3.2), because pypiper would silently reuse old files. Use a new `output_dir`.
+v3 refuses to write into an output folder that contains results of another major.minor version (v2, or 3.2 when
+running 3.3), because pypiper would silently reuse old files. Use a new `output_dir`.
 
 ## Project summary (`results/project/summary/`)
 
 - `<project>_stats_summary.tsv`: all statistics; file objects as absolute paths.
 - `<project>_files.tsv`, `<project>_BAM_files.tsv`: output files per sample.
-- repeats mode: `_fc_summary.rds`, `_fc_id_summary.rds` (SummarizedExperiment) and IAP coverage (mm10).
+- chromatin: `_repeats_family_summary.rds`, `_repeats_elements_summary.rds` (SummarizedExperiment, assays
+  `frag_all` / `frag_locus`, rowData with divergence and flags).
+- RNA repeats mode: `_fc_summary.rds`, `_fc_id_summary.rds` (v2 tables).
+- IAP coverage (mm10 samples): `_IAP_coverage_summary.rds` + plots.
 - RNA: `_unstranded_` / `_sense_gene_counts_summary.rds`, `_tpm_summary.tsv/.rds`.
 - `results/<project>_BigWig_igv_session.xml`.
 - The genome is appended to file names when a project contains more than one genome.

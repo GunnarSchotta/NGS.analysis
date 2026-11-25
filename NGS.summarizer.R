@@ -8,8 +8,10 @@
 #   {project}_stats_summary.tsv        all per-sample stats; file objects as their absolute path
 #   {project}_files.tsv                sample, object, genome, absolute path (BAMs, bigwigs, peaks, ...)
 #   {project}_BAM_files.tsv            sample, genome, BAM_mapped / BAM_filtered / BAM_dedup_unique
-#   {project}[_{genome}]_fc_summary.rds / _fc_id_summary.rds        repeats mode, one per genome
-#   {project}_IAP_coverage_summary.rds (+ plots)                     repeats mode, mm10 samples
+#   {project}[_{genome}]_repeats_family_summary.rds / _repeats_elements_summary.rds
+#                                      chromatin (3.3.0+): assays frag_all / frag_locus, rowData annotation + flags
+#   {project}[_{genome}]_fc_summary.rds / _fc_id_summary.rds        RNA repeats mode (v2 tables), one per genome
+#   {project}_IAP_coverage_summary.rds (+ plots)                     mm10 samples with IAP coverage
 #   {project}[_{genome}]_unstranded/_sense_gene_counts_summary.rds  RNA samples
 #   {project}[_{genome}]_tpm_summary.tsv/.rds                       RNA samples with RSEM
 #   results/{project}[_{genome}]_BigWig_igv_session.xml
@@ -98,51 +100,92 @@ seFrom <- function(m, samples) SummarizedExperiment(assays = list(counts = m),
                                                     colData = sample_table[sample_table$sample_name %in% samples, ])
 
 ################################################################################
-# repeats mode: featureCounts family / element summaries, IAP coverage
-if (pipeline_mode == "repeats") {
-    for (g in genomes_used) {
-        ss <- samplesOf(g)
-        for (lvl in c("fc", "fc_id")) {
-            write(paste0("Creating ", lvl, " summary (", g, ") ..."), stdout())
-            mat <- NULL; ok <- c()
-            for (s in ss) {
-                f <- file.path(results_subdir, s, "feature_counts", paste0(s, if (lvl == "fc") ".fc.txt" else ".fc.id.txt"))
-                if (!file.exists(f)) { warning("missing ", f); next }
-                if (lvl == "fc") {
-                    t <- fread(f, header = FALSE, col.names = c("repeatID", "length", s), skip = 2)
-                } else {
-                    t <- fread(f, header = FALSE, col.names = c("repeatID", "chr", "start", "end", "strand", "length", s), skip = 2)
-                }
-                mat <- if (is.null(mat)) t else cbind(mat, t[, ncol(t), with = FALSE])
-                ok <- c(ok, s)
-            }
-            if (is.null(mat)) next
-            first <- if (lvl == "fc") 3 else 7
-            m <- as.matrix(mat[, first:ncol(mat)]); rownames(m) <- mat$repeatID
-            saveRDS(seFrom(m, ok), file.path(summary_dir, fname(g, paste0("_", lvl, "_summary.rds"))))
-        }
-    }
-    ss <- samplesOf("mm10")
-    cov <- NULL
+# chromatin (3.3.0+): repeat family / element tables, all fragments and locus tier
+chrom_all <- sample_table[sample_table$protocol != "RNA", ]$sample_name
+readRep <- function(f) if (grepl("\\.gz$", f)) fread(cmd = paste("zcat", shQuote(f))) else fread(f)
+repSE <- function(lst, id, rd_cols) {
+    long <- rbindlist(lapply(names(lst), function(s) lst[[s]][, sample_name := s]))
+    rd <- unique(long[, c(id, rd_cols), with = FALSE], by = id)
+    asy <- lapply(c(frag_all = "frag_all", frag_locus = "frag_locus"), function(v) {
+        w <- dcast(long, as.formula(paste(id, "~ sample_name")), value.var = v, fill = 0)
+        m <- as.matrix(w[, -1, with = FALSE]); rownames(m) <- w[[id]]
+        m[rd[[id]], names(lst), drop = FALSE]
+    })
+    SummarizedExperiment(assays = asy, rowData = rd,
+                         colData = sample_table[match(names(lst), sample_table$sample_name), ])
+}
+for (g in genomes_used) {
+    ss <- samplesOf(g, chrom_all)
+    fam <- list(); el <- list()
     for (s in ss) {
-        f <- file.path(results_subdir, s, "IAP_coverage", paste0(s, ".IAP.norm.coverage.txt"))
-        if (!file.exists(f)) next
-        cf <- fread(f, header = FALSE, col.names = s)
-        cov <- if (is.null(cov)) data.table(pos = seq_len(nrow(cf)), cf) else cbind(cov, cf)
+        d <- file.path(results_subdir, s, paste0("repeats_", g))
+        f <- file.path(d, paste0(s, ".repeats.family.tsv"))
+        e <- file.path(d, paste0(s, ".repeats.elements.tsv.gz"))
+        if (file.exists(f)) fam[[s]] <- readRep(f)
+        if (file.exists(e)) el[[s]] <- readRep(e)
     }
-    if (!is.null(cov)) {
-        write("Creating IAP coverage summary ...", stdout())
-        cm <- as.matrix(cov[, 2:ncol(cov)]); rownames(cm) <- cov$pos
-        cov.se <- SummarizedExperiment(assays = list(IAP.coverage = cm),
-                                       colData = sample_table[sample_table$sample_name %in% colnames(cm), ])
-        saveRDS(cov.se, file.path(summary_dir, paste0(project_name, "_IAP_coverage_summary.rds")))
-        df <- melt(cov, id.vars = "pos", variable.name = "samples")
-        gm <- ggplot(df, aes(pos, value)) + geom_line(aes(colour = samples))
-        gs <- ggplot(df, aes(pos, value)) + geom_line() + facet_grid(samples ~ .)
-        for (ext in c("pdf", "png")) {
-            ggsave(gm, filename = file.path(summary_dir, paste0(project_name, "_IAP_coverage_merged.", ext)))
-            ggsave(gs, filename = file.path(summary_dir, paste0(project_name, "_IAP_coverage_samples.", ext)))
+    if (length(fam)) {
+        write(paste0("Creating repeat family summary (", g, ") ..."), stdout())
+        saveRDS(repSE(fam, "family", c("class", "n_elements")),
+                file.path(summary_dir, fname(g, "_repeats_family_summary.rds")))
+    }
+    if (length(el)) {
+        write(paste0("Creating repeat element summary (", g, ") ..."), stdout())
+        saveRDS(repSE(el, "element_id", c("family", "class", "repfamily", "chr", "start", "end", "strand",
+                                          "div_pct", "flags")),
+                file.path(summary_dir, fname(g, "_repeats_elements_summary.rds")))
+    }
+}
+
+################################################################################
+# RNA repeats mode (v2 tables): featureCounts family / element summaries
+rna_rep <- if (isTRUE(pipeline_mode == "repeats")) sample_table[sample_table$protocol == "RNA", ]$sample_name else c()
+for (g in genomes_used) {
+    ss <- samplesOf(g, rna_rep)
+    if (length(ss) == 0) next
+    for (lvl in c("fc", "fc_id")) {
+        write(paste0("Creating ", lvl, " summary (", g, ") ..."), stdout())
+        mat <- NULL; ok <- c()
+        for (s in ss) {
+            f <- file.path(results_subdir, s, "feature_counts", paste0(s, if (lvl == "fc") ".fc.txt" else ".fc.id.txt"))
+            if (!file.exists(f)) { warning("missing ", f); next }
+            if (lvl == "fc") {
+                t <- fread(f, header = FALSE, col.names = c("repeatID", "length", s), skip = 2)
+            } else {
+                t <- fread(f, header = FALSE, col.names = c("repeatID", "chr", "start", "end", "strand", "length", s), skip = 2)
+            }
+            mat <- if (is.null(mat)) t else cbind(mat, t[, ncol(t), with = FALSE])
+            ok <- c(ok, s)
         }
+        if (is.null(mat)) next
+        first <- if (lvl == "fc") 3 else 7
+        m <- as.matrix(mat[, first:ncol(mat)]); rownames(m) <- mat$repeatID
+        saveRDS(seFrom(m, ok), file.path(summary_dir, fname(g, paste0("_", lvl, "_summary.rds"))))
+    }
+}
+
+################################################################################
+# IAP coverage (mm10): chromatin (all-fragment set) and RNA repeats mode (v2)
+ss <- samplesOf("mm10")
+cov <- NULL
+for (s in ss) {
+    f <- file.path(results_subdir, s, "IAP_coverage", paste0(s, ".IAP.norm.coverage.txt"))
+    if (!file.exists(f)) next
+    cf <- fread(f, header = FALSE, col.names = s)
+    cov <- if (is.null(cov)) data.table(pos = seq_len(nrow(cf)), cf) else cbind(cov, cf)
+}
+if (!is.null(cov)) {
+    write("Creating IAP coverage summary ...", stdout())
+    cm <- as.matrix(cov[, 2:ncol(cov)]); rownames(cm) <- cov$pos
+    cov.se <- SummarizedExperiment(assays = list(IAP.coverage = cm),
+                                   colData = sample_table[sample_table$sample_name %in% colnames(cm), ])
+    saveRDS(cov.se, file.path(summary_dir, paste0(project_name, "_IAP_coverage_summary.rds")))
+    df <- melt(cov, id.vars = "pos", variable.name = "samples")
+    gm <- ggplot(df, aes(pos, value)) + geom_line(aes(colour = samples))
+    gs <- ggplot(df, aes(pos, value)) + geom_line() + facet_grid(samples ~ .)
+    for (ext in c("pdf", "png")) {
+        ggsave(gm, filename = file.path(summary_dir, paste0(project_name, "_IAP_coverage_merged.", ext)))
+        ggsave(gs, filename = file.path(summary_dir, paste0(project_name, "_IAP_coverage_samples.", ext)))
     }
 }
 

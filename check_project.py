@@ -19,7 +19,7 @@ import yaml
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROTOCOLS = {"CHIP", "CT", "CR", "RNA", "ATAC"}
 GENOME_FILES = ["fai", "bowtie2_index", "star_genome_index", "star_rna_index", "repeats_saf", "repeats_safid",
-                "tss_bed", "blacklist"]
+                "repeats_annotation", "tss_bed", "blacklist"]
 
 
 def main(cfg="analysis.configuration.yaml"):
@@ -38,9 +38,13 @@ def main(cfg="analysis.configuration.yaml"):
             if a != b and b.startswith(a + "_"):
                 errors.append(f"sample_name '{a}' is a prefix of '{b}' at an '_' boundary: pipestat flag lookup "
                               f"'{{pipeline}}_{a}_*.flag' would also match '{b}'. Rename one of them.")
+    # pipeline_mode applies to RNA only (chromatin has one mode since 3.3.0)
     mode = prj.config.get("pipeline_mode")
-    if mode not in ("genes", "repeats"):
-        errors.append(f"pipeline_mode must be genes or repeats, found {mode!r}")
+    has_rna = any(s.get("protocol") == "RNA" for s in prj.samples)
+    if mode is not None and mode not in ("genes", "repeats"):
+        errors.append(f"pipeline_mode must be genes or repeats (RNA samples), found {mode!r}")
+    elif mode == "repeats" and not has_rna:
+        warnings.append("pipeline_mode: repeats has no effect: chromatin samples always get gene and repeat outputs")
     genomes_checked = {}
     for s in prj.samples:
         n = s.sample_name

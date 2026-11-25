@@ -57,6 +57,34 @@ project:
       - path
       - title
     description: "FeatureCounts class summary for all samples."
+  repeats_family_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Repeat family counts of chromatin samples (SummarizedExperiment: frag_all, frag_locus)."
+  repeats_elements_file:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: "Path to the file."
+      title:
+        type: string
+        description: "Title of the file."
+    required:
+      - path
+      - title
+    description: "Repeat element counts of chromatin samples (SummarizedExperiment: frag_all, frag_locus; rowData divergence, flags)."
   feature_counts_id_file:
     type: object
     object_type: file

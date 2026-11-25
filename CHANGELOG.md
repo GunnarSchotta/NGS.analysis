@@ -1,5 +1,73 @@
 # Changelog
 
+## 3.3.0 (branch `v3`, 2026-11)
+
+**One mode for chromatin** (ATAC, CHIP, CR, CT; roadmap A0, decided 2026-11-25). Every chromatin sample is aligned
+once with bowtie2 and gets both the gene outputs and the repeat outputs. `pipeline_mode` now only applies to RNA
+(`genes` = STAR + RSEM, `repeats` = v2 STAR random-1, unchanged). Not backward compatible: STAR is no longer used for
+chromatin, and `.dedup.unique.bam`, `.fc.txt` and `.fc.id.txt` are no longer produced for chromatin samples.
+User guide: `docs/repeats.md`.
+
+### Why bowtie2
+- Teissandier et al. 2019 found no accuracy difference between STAR and bowtie2 (STAR was chosen for speed).
+- On our ART simulation, STAR "unique" (MAPQ 255) equals bowtie2 MAPQ ≥ 2 in yield and accuracy. bowtie2's graded MAPQ
+  allows a stricter locus tier that STAR cannot provide (STAR's MAPQ only counts loci).
+- STAR took about 2× bowtie2's time on real 01.Angela data and needs about 30 GB RAM.
+- bowtie2's random choice among equal best loci is deterministic per read. STAR's `--outMultimapperOrder Random` with
+  several threads is not: two runs with identical commands placed about half of the T1 RNA multimappers differently.
+
+### Chromatin outputs
+- **`.filt.bam` is now MAPQ ≥ 10 (was 30; decided 2026-11-25).** One filtered BAM and one bigwig (`.filt.bw`) serve
+  peaks, FRiP, QC, the CR/CT split and locus plots; the repeat locus tier uses the same cutoff (`LOCUS_MAPQ =
+  FILT_MAPQ`). Evidence (`analysis/NGS.analysis.v3.peaks.benchmark/mapq10/README.md`; 4 ATAC and 6 histone libraries
+  of 01.Angela wt26, 2 replicates per mark, same MACS3 3.2 settings at both cutoffs):
+  - MAPQ 10 adds 2.7–3 % of fragments (ATAC, H3K27ac) and 4.4–9.3 % (H3K9me3, H4K20me3), 52–83 % of them in repeats;
+    5–12 % of the gained fragments are in young (< 5 % diverged) elements, i.e. 0.1–1.1 % of all fragments.
+  - ATAC and H3K27ac: peak Jaccard 0.96–0.97, FRiP change ≤ 0.2 points, TSS score −0.1, replicate concordance
+    unchanged, 10 kb bigwig correlation ≥ 0.976.
+  - H3K9me3 and H4K20me3: domain Jaccard 0.81–0.89 between the cutoffs, a smaller change than the difference between
+    replicates at MAPQ 30 (Jaccard 0.33–0.45). FRiP +0.9 to +2.5 points, replicate concordance slightly better
+    (H3K9me3 0.450 → 0.466, H4K20me3 0.329 → 0.360). The extra H4K20me3 regions are poorly reproduced between
+    replicates (9 %).
+  - Limits: n = 2 per mark, one genotype, no ground truth for the extra regions.
+  - **Statistics that change relative to 3.2.0** (same data): `Filtered_fragments`/`Filtered_pct`, `Unique_fragments`/
+    `Unique_pct` (cutoff = `.filt.bam` cutoff), NRF/PBC (computed on MAPQ ≥ 10 fragments), `TSS_score`, `FRiP_pct`,
+    peak numbers and regions, `.filt.bw`. Compare 3.3.0 chromatin results only with 3.3.0 results.
+  - Not repeated after the switch: the T1 run (its 3.3.0 results used MAPQ 30).
+- **All-fragment set** (temporary `.all.bam`): proper pairs, duplicates removed, canonical chromosomes, no chrM, any
+  MAPQ, blacklist kept. New statistic `All_fragments`.
+- **Bigwigs:** `.filt.bw` (CPM, MAPQ ≥ 10) and `.all.bw` (CPM, every fragment, multimappers at one random best locus);
+  key `BigWig_all`. A separate `.locus.bw` existed during 3.3.0 development (while `.filt.bam` was MAPQ 30) and was
+  never released: no `BigWig_locus` key.
+- **Repeat counts** in `repeats_<genome>/`, two tiers: all fragments (family level) and locus tier MAPQ ≥ 10 (element
+  level). bowtie2 gives both mates of a concordant pair the same MAPQ, so a tier is a property of the fragment.
+  - `<s>.repeats.family.tsv`: `frag_all`, `frag_locus`, number of elements with locus fragments, share of the locus
+    signal on young elements and in the 10 strongest elements (is a family effect carried by a few copies?).
+  - `<s>.repeats.elements.tsv.gz`: elements with ≥ 1 fragment, `frag_all`, `frag_locus`, `locus_frac`, divergence and
+    flags.
+  - Fixed relative to v2 (open-questions issues 1, 3, 5, 6, 11): duplicates removed; fragments instead of mates
+    (`--countReadPairs`); `-O` (nested/overlapping entries are counted instead of dropped as ambiguous); fragments up
+    to 2 kb (STAR capped mate gaps at 350 bp); IAP normalisation per million nuclear deduplicated fragments.
+- **Uncertainty markers** (strain and polymorphic insertions are unknown for most data sets):
+  - `young` flag: interspersed repeat < 5 % diverged from its consensus. Calibrated on the ART/SNP simulation:
+    at MAPQ ≥ 10 such elements receive 5–15 % of their fragments from elsewhere when the sample differs from the
+    reference like a 129 strain, mostly reads from non-reference copies (0.6 % at 5–8 %, < 0.2 % above 8 %).
+  - `overlap` flag (another annotation entry covers ≥ 10 % of the element) and `blacklist` flag.
+  - Sample statistics `Repeat_fragments`, `Repeat_pct`, `Repeat_locus_fragments`, `Repeat_locus_pct`,
+    `Young_locus_pct`.
+- **Per-genome element annotation** `genomes/<g>.yaml: repeats_annotation` (`repeat_elements.<g>.tsv.gz`, built by
+  `resources/genomes/build_repeat_annotation.py` for mm10, hg38, hs1, mhaESC): divergence, overlapping entries,
+  blacklist, in element-SAF order.
+- IAP gag coverage (mm10) from the all-fragment set.
+
+### Framework
+- `NGS.peaks` always uses `.filt.bam` (no `--pipeline-mode` argument).
+- Project summary: `_repeats_family_summary.rds` and `_repeats_elements_summary.rds` (SummarizedExperiment, assays
+  `frag_all`/`frag_locus`, rowData with annotation and flags); IAP coverage collected for every mm10 sample with a
+  coverage file; v2 `_fc_` summaries only for RNA repeats mode.
+- `check_project.py`: `pipeline_mode` optional (RNA only), checks `repeats_annotation`.
+- Version guard: 3.3 refuses 3.2 output folders.
+
 ## 3.2.0 (branch `v3`, 2026-11)
 
 Peak calling follows the 01.Angela settings and conclusions of the peaks benchmark

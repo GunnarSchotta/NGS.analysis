@@ -13,6 +13,7 @@ star_rna_index: /store24/project24/becgsc_001/genomes/mhaESC/STAR
 rsem_index: /store24/project24/becgsc_001/genomes/mhaESC/RSEM/RSEM
 repeats_saf: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/rmsk.mhaESC.SAF
 repeats_safid: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/rmsk.ids.mhaESC.SAF
+repeats_annotation: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/repeat_elements.mhaESC.tsv.gz   # resources/genomes/build_repeat_annotation.py
 tss_bed: /store24/project24/becgsc_001/genomes/mhaESC/Annotation/Genes/mhaESC_TSS.bed
 blacklist: null
 mito: chrM

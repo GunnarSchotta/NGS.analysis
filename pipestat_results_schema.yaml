@@ -36,7 +36,7 @@ samples:
     description: 'Aligned (bowtie2: primary R1 mapped; STAR: unique + multi, excl. too-many-loci) [fragments (PE: read pairs; SE: reads)]'
   Unique_fragments:
     type: number
-    description: 'Uniquely aligned (bowtie2: MAPQ>=30; STAR: unique) [fragments (PE: read pairs; SE: reads)]'
+    description: 'Uniquely aligned (bowtie2: MAPQ >= 10 = the .filt.bam cutoff; STAR: unique) [fragments (PE: read pairs; SE: reads)]'
   Multimapped_fragments:
     type: number
     description: 'STAR only: mapped to multiple loci [fragments (PE: read pairs; SE: reads)]'
@@ -81,13 +81,31 @@ samples:
     description: 'Picard PERCENT_DUPLICATION x 100, on <s>.bam (Mito_filter removed: nuclear fragments only) [%]'
   Filtered_fragments:
     type: number
-    description: 'In the analysis BAM (genes: .filt.bam; repeats: .dedup.unique.bam, duplicates marked but retained) [fragments (PE: read pairs; SE: reads)]'
+    description: 'In the analysis BAM (chromatin: .filt.bam; RNA repeats: .dedup.unique.bam, duplicates marked but retained) [fragments (PE: read pairs; SE: reads)]'
   Filtered_nondup_fragments:
     type: number
-    description: 'repeats mode: .dedup.unique.bam without duplicates (Mito_filter removed: nuclear only) [fragments (PE: read pairs; SE: reads)]'
+    description: 'RNA repeats mode: .dedup.unique.bam without duplicates [fragments (PE: read pairs; SE: reads)]'
   Filtered_pct:
     type: number
-    description: 'genes mode: Filtered_fragments / Trimmed_fragments [%]'
+    description: 'chromatin: Filtered_fragments / Trimmed_fragments [%]'
+  All_fragments:
+    type: number
+    description: 'chromatin: all-fragment set (proper pairs, duplicates removed, canonical chromosomes, no chrM, any MAPQ, blacklist kept); basis of repeat counts, IAP coverage and BigWig_all [fragments (PE: read pairs; SE: reads)]'
+  Repeat_fragments:
+    type: number
+    description: 'chromatin: fragments of the all-fragment set overlapping >= 1 RepeatMasker entry (featureCounts family level, -O) [fragments (PE: read pairs; SE: reads)]'
+  Repeat_pct:
+    type: number
+    description: 'chromatin: Repeat_fragments / All_fragments [%]'
+  Repeat_locus_fragments:
+    type: number
+    description: 'chromatin: repeat fragments in the locus tier (MAPQ >= 10) [fragments (PE: read pairs; SE: reads)]'
+  Repeat_locus_pct:
+    type: number
+    description: 'chromatin: Repeat_locus_fragments / Repeat_fragments [%]'
+  Young_locus_pct:
+    type: number
+    description: 'chromatin: share of element-level locus-tier assignments on young elements (< 5 % divergence from consensus; reads from non-reference copies cannot be excluded there) [%]'
   Insert_size_median:
     type: number
     description: Median |TLEN| of proper pairs in the analysis BAM [bp]
@@ -138,7 +156,7 @@ samples:
     description: CHIP, ATAC, CR, CT or RNA
   Pipeline_mode:
     type: string
-    description: genes or repeats
+    description: 'chromatin (one mode since 3.3.0); RNA: genes or repeats'
   Pipeline_version:
     type: string
     description: NGS.analysis version
@@ -225,7 +243,7 @@ samples:
     required:
     - path
     - title
-    description: 'repeats mode: unique (MAPQ 255) alignments, duplicates MARKED not removed (v2 definition)'
+    description: 'RNA repeats mode: unique (MAPQ 255) alignments, duplicates MARKED not removed (v2 definition)'
   BAM_filtered:
     type: object
     object_type: file
@@ -239,7 +257,7 @@ samples:
     required:
     - path
     - title
-    description: 'genes mode chromatin: proper pairs, duplicates removed, MAPQ>=30, canonical chromosomes, no mito, blacklist removed'
+    description: 'chromatin: proper pairs, duplicates removed, MAPQ>=30, canonical chromosomes, no mito, blacklist removed'
   BigWig:
     type: object
     object_type: file
@@ -267,7 +285,7 @@ samples:
     required:
     - path
     - title
-    description: 'repeats mode: RPKM from .dedup.unique.bam (v2)'
+    description: 'RNA repeats mode: RPKM from .dedup.unique.bam (v2)'
   BigWig_filtered:
     type: object
     object_type: file
@@ -281,7 +299,7 @@ samples:
     required:
     - path
     - title
-    description: 'genes mode chromatin: CPM, fragment-extended, from .filt.bam'
+    description: 'chromatin: CPM, fragment-extended, from .filt.bam'
   BigWig_filtered_nuc:
     type: object
     object_type: file
@@ -295,7 +313,7 @@ samples:
     required:
     - path
     - title
-    description: 'CR/CT genes mode: fragments >= 120 bp, CPM'
+    description: 'CR/CT: fragments >= 120 bp, CPM'
   BigWig_filtered_subnuc:
     type: object
     object_type: file
@@ -309,7 +327,7 @@ samples:
     required:
     - path
     - title
-    description: 'CR/CT genes mode: fragments < 120 bp, CPM'
+    description: 'CR/CT: fragments < 120 bp, CPM'
   RSEM_genes_results:
     type: object
     object_type: file
@@ -352,6 +370,62 @@ samples:
     - path
     - title
     description: MACS3 peaks, blacklist removed
+  BigWig_all:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'chromatin: CPM, fragment-extended, all-fragment set (any MAPQ; multimappers at one random best locus)'
+  Repeat_family_table:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'chromatin: per repeat family, fragments (all / locus tier), elements, young and top-10 share of locus assignments'
+  Repeat_element_table:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'chromatin: per repeat element with >= 1 fragment: all / locus-tier fragments, locus fraction, divergence, flags young/overlap/blacklist (gzip TSV)'
+  IAP_coverage:
+    type: object
+    object_type: file
+    properties:
+      path:
+        type: string
+        description: Path to the file.
+      title:
+        type: string
+        description: Title of the file.
+    required:
+    - path
+    - title
+    description: 'chromatin, mm10: IAP gag coverage profile of the all-fragment set, per million All_fragments'
   TSS enrichment:
     type: object
     object_type: image

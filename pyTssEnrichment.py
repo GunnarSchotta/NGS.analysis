@@ -8,7 +8,8 @@
 #     TSSs is handled once, when the profile is filled
 #   - paired-end: each fragment once (from its leftmost, forward-strand mate): ends pos+4 and pos+TLEN-5
 #   - single-end (TLEN 0): the read's 5' insertion only (forward: pos+4; reverse: reference_end-5), both strands
-#   - MAPQ >= 30, no secondary/supplementary/duplicate/QC-fail records
+#   - MAPQ >= -q (default 30; the pipeline passes the .filt.bam cutoff, 10 since 3.3.0), no
+#     secondary/supplementary/duplicate/QC-fail records
 #   - robust chunking when there are fewer TSSs than threads
 # Output (-v -z): one line per position from -u to +d (u+d values) = summed insertion counts.
 # The TSS score is computed by the pipeline (ngs_qc.tss_score).

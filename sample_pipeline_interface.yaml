@@ -15,7 +15,7 @@ sample_interface:
     --single-or-paired {sample.read_type}
     --genome {sample.genome}
     --protocol {sample.protocol}
-    --pipeline-mode {project.pipeline_mode}
+    {% if project.pipeline_mode is defined and project.pipeline_mode %} --pipeline-mode {project.pipeline_mode} {% endif %}
     {% if sample.genome_config is defined and sample.genome_config %} --genome-config {sample.genome_config} {% endif %}
     {% if sample.STAR_RNA_index is defined and sample.STAR_RNA_index %} --STAR_RNA_index {sample.STAR_RNA_index} {% endif %}
     {% if sample.STAR_genome_index is defined and sample.STAR_genome_index %} --STAR_genome_index {sample.STAR_genome_index} {% endif %}

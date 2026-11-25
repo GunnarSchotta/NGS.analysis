@@ -6,11 +6,11 @@ Run AFTER the main NGS.analysis run has completed for the sample and its control
     looper run -p slurm -c .looper.peaks.yaml
 (a copy of .looper.yaml whose pipeline_interfaces lists only <v3>/peaks_pipeline_interface.yaml)
 Samples without a `control` column value are skipped (nothing is done, status completed).
-Inputs (from the main run): genes mode .filt.bam, repeats mode .dedup.unique.bam of sample and control.
+Inputs (from the main run): .filt.bam of sample and control (chromatin; one mode since 3.3.0).
 Outputs: <sample>/peaks_ctrl_<genome>/<sample>_peaks[_noBL].{narrow,broad}Peak, FRiP; results in
 <sample>/NGS.peaks_stats.yaml (own pipeline name and schema: pipestat_peaks_results_schema.yaml).
 """
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 
 from argparse import ArgumentParser
 import os
@@ -32,7 +32,6 @@ MACS_BROAD_ARGS = "-q 1e-4 --broad --broad-cutoff 0.2"
 p = ArgumentParser(description="NGS.peaks " + __version__)
 p = pypiper.add_pypiper_args(p, groups=["pypiper", "looper", "ngs"], required=["sample-name", "output-parent", "genome"])
 p.add_argument("--genome-config", default=None)
-p.add_argument("--pipeline-mode", required=True, choices=["genes", "repeats"])
 p.add_argument("--control", default=None)
 p.add_argument("--target", default=None)
 p.add_argument("--peak-mode", default="auto", choices=["auto", "narrow", "broad", "none"])
@@ -51,8 +50,7 @@ outfolder = os.path.join(samples_dir, args.sample_name)
 
 
 def analysis_bam(sample):
-    tag = "filt" if args.pipeline_mode == "genes" else "dedup.unique"
-    return os.path.join(samples_dir, sample, "aligned_" + args.genome_assembly, f"{sample}.{tag}.bam")
+    return os.path.join(samples_dir, sample, "aligned_" + args.genome_assembly, f"{sample}.filt.bam")
 
 
 if args.pipestat_config and os.path.exists(args.pipestat_config):
@@ -96,7 +94,7 @@ with open(marker, "w") as fh:
 ptype = "broadPeak" if mode == "broad" else "narrowPeak"
 peaks = os.path.join(folder, f"{args.sample_name}_peaks.{ptype}")
 peaks_nobl = os.path.join(folder, f"{args.sample_name}_peaks_noBL.{ptype}")
-keepdup = "all" if args.pipeline_mode == "genes" else "1"
+keepdup = "all"                     # .filt.bam has no duplicates
 call_summits = (args.protocol or "").upper() == "ATAC" and mode == "narrow"
 cmd = (f"macs3 callpeak -t {t_bam} -c {c_bam} -n {args.sample_name} --outdir {folder} -g {GSIZE} "
        f"--keep-dup {keepdup}" + (" -f BAMPE" if paired else f" -f BAM --nomodel --extsize {args.se_extend}") +

@@ -278,3 +278,94 @@ def count_lines(path):
     op = gzip.open if path.endswith(".gz") else open
     with op(path, "rt") as f:
         return sum(1 for _ in f)
+
+
+# --------------------------------------------------------------------------- repeats (chromatin, 3.3.0)
+YOUNG_EXCLUDE_CLASSES = {"Simple_repeat", "Low_complexity", "Satellite", "NA"}
+OVERLAP_FRAC = 0.1      # overlap flag: >= 10 % of the element covered by one other annotation entry
+
+
+def _fc_rows(path):
+    """featureCounts table (2 header lines) -> (id, count) per feature, in annotation order."""
+    with open(path) as fh:
+        next(fh)
+        next(fh)
+        for line in fh:
+            c = line.rstrip("\n").split("\t")
+            yield c[0], int(c[-1])
+
+
+def _annot_rows(path):
+    """repeat_elements.<genome>.tsv.gz (resources/genomes/build_repeat_annotation.py) -> dict per element."""
+    with gzip.open(path, "rt") as fh:
+        hdr = None
+        for line in fh:
+            if line.startswith("#"):
+                continue
+            c = line.rstrip("\n").split("\t")
+            if hdr is None:
+                hdr = c
+                continue
+            yield dict(zip(hdr, c))
+
+
+def repeat_tables(el_all, el_locus, fam_all, fam_locus, annot, out_elements, out_family, young_div, top_n=10):
+    """Merge the element and family featureCounts outputs (all fragments / locus tier) into
+    out_elements (gzip TSV, elements with >= 1 fragment) and out_family (TSV, all families).
+
+    Element columns: element_id family class repfamily chr start end strand div_pct frag_all frag_locus
+    locus_frac flags. flags (comma list, '.' if none): young (div_pct < young_div, interspersed repeats only),
+    overlap (another annotation entry covers >= OVERLAP_FRAC of the element; -O counts fragments there for both),
+    blacklist.
+    Without annotation (annot None) the static columns are NA and flags '.'.
+    Family columns: family class frag_all frag_locus locus_pct n_elements n_el_locus young_locus_pct
+    top<top_n>_locus_pct (share of the family's element-level locus assignments in its top_n elements).
+    Returns sample statistics (element-level assignment sums)."""
+    ann = _annot_rows(annot) if annot else None
+    fam = {}                              # family -> [class, n_el, n_el_locus, locus_sum, young_locus, top list]
+    tot_locus = tot_young_locus = 0
+    with gzip.open(out_elements, "wt") as o:
+        o.write("element_id\tfamily\tclass\trepfamily\tchr\tstart\tend\tstrand\tdiv_pct\tfrag_all\tfrag_locus\t"
+                "locus_frac\tflags\n")
+        for (eid, n_all), (eid2, n_loc) in zip(_fc_rows(el_all), _fc_rows(el_locus)):
+            if eid != eid2:
+                raise ValueError(f"element order differs between {el_all} and {el_locus}: {eid} / {eid2}")
+            a = next(ann) if ann else None
+            if a is not None and a["element_id"] != eid:
+                raise ValueError(f"repeat annotation {annot} does not match the element SAF ({a['element_id']} / "
+                                 f"{eid}); rebuild it with resources/genomes/build_repeat_annotation.py")
+            family = a["family"] if a else eid
+            cls = a["class"] if a else "NA"
+            div = a["div_pct"] if a else "NA"
+            young = (a is not None and div != "NA" and float(div) < young_div and cls not in YOUNG_EXCLUDE_CLASSES)
+            f = fam.setdefault(family, [cls, 0, 0, 0, 0, []])
+            f[1] += 1
+            if n_loc:
+                f[2] += 1
+                f[3] += n_loc
+                f[5].append(n_loc)
+                if len(f[5]) > 4 * top_n:
+                    f[5] = sorted(f[5], reverse=True)[:top_n]
+                tot_locus += n_loc
+                if young:
+                    f[4] += n_loc
+                    tot_young_locus += n_loc
+            if n_all == 0 and n_loc == 0:
+                continue
+            flags = [x for x, on in (("young", young), ("overlap", a is not None and float(a["overlap_max_frac"]) >= OVERLAP_FRAC),
+                                     ("blacklist", a is not None and a["blacklist"] == "1")) if on]
+            st = (a["repfamily"], a["chr"], a["start"], a["end"], a["strand"]) if a else ("NA",) * 5
+            o.write(f"{eid}\t{family}\t{cls}\t" + "\t".join(st) + f"\t{div}\t{n_all}\t{n_loc}\t"
+                    f"{round(n_loc / n_all, 3) if n_all else 'NA'}\t{','.join(flags) or '.'}\n")
+    with open(out_family, "w") as o:
+        o.write(f"family\tclass\tfrag_all\tfrag_locus\tlocus_pct\tn_elements\tn_el_locus\tyoung_locus_pct\t"
+                f"top{top_n}_locus_pct\n")
+        for (fid, n_all), (fid2, n_loc) in zip(_fc_rows(fam_all), _fc_rows(fam_locus)):
+            if fid != fid2:
+                raise ValueError(f"family order differs between {fam_all} and {fam_locus}")
+            cls, n_el, n_el_loc, loc_sum, young_loc, top = fam.get(fid, ["NA", 0, 0, 0, 0, []])
+            topsum = sum(sorted(top, reverse=True)[:top_n])
+            o.write(f"{fid}\t{cls}\t{n_all}\t{n_loc}\t{round(100 * n_loc / n_all, 2) if n_all else 'NA'}\t{n_el}\t"
+                    f"{n_el_loc}\t{round(100 * young_loc / loc_sum, 2) if loc_sum else 'NA'}\t"
+                    f"{round(100 * topsum / loc_sum, 2) if loc_sum else 'NA'}\n")
+    return {"element_locus_assignments": tot_locus, "element_young_locus_assignments": tot_young_locus}

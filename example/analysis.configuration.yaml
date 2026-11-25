@@ -2,7 +2,7 @@
 name: Eugenio.RNA
 pep_version: 2.1.0
 sample_table: sample.table.csv
-# pipeline run mode: genes | repeats
+# RNA samples only: genes (STAR + RSEM) | repeats (v2 STAR random-1). Chromatin samples have one mode (3.3.0+).
 pipeline_mode: genes
 
 sample_modifiers:
