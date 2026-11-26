@@ -149,7 +149,8 @@ RNA repeats commands identical to v2 (`analysis/NGS.analysis.v3.validation/READM
 in `T1/archive_3.3.0_mapq30/`). T2 was rerun with 3.3.0 (2026-11-26): Edenhofer ATAC at `-q 30` +0.18–0.30 % vs the
 cutadapt re-processing (MAPQ 10 BAM +3.3–4.1 % by design), RNA repeats mode still matches v2 (r = 0.99998), bowtie2
 H3K9me3 ChIP differs from v2 STAR by design (family r = 0.987, totals ~0.55×); several simple-repeat families rise
-unexplained (`analysis/NGS.analysis.v3.validation/README.md`). Still open: the mapq10 test is limited to n = 2 per mark.
+unexplained (`analysis/NGS.analysis.v3.validation/README.md`). **MAPQ 10 is final (user decision 2026-11-26)**; young
+elements are marked uncertain, not filtered. Caveat kept on record: the mapq10 test had n = 2 per mark, one genotype.
 
 ## Open questions for further development
 

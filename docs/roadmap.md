@@ -62,7 +62,9 @@ them in commits and READMEs. Repeats-mode details and evidence: `repeat_strategy
   at 129-like divergence it keeps young-L1 precision at 98.5 % (2×100; MAPQ ≥ 2: 88 %), and ≥ 30 adds no precision
   but loses up to 75 % of young-element fragments. Non-reference TE insertions still place 13–21 % of their reads on
   a reference copy at MAPQ ≥ 10; only strain information (G3) or long reads (H6) address that. Final choice of the
-  tier: with the module implementation. A family-level sub-analysis (how many copies drive a family effect; overlapping/nested
+  tier: **MAPQ ≥ 10 confirmed as final for `.filt.bam` and the locus tier (2026-11-26)**, after the T2 rerun and the MAPQ 10 vs 30
+  test (n = 2 per mark, no harm found). Young-element uncertainty is marked (`young`, `locus_frac`, `overlap`,
+  `Young_locus_pct`), not filtered away; a stricter set is available with `samtools view -q 30` on `.filt.bam`. A family-level sub-analysis (how many copies drive a family effect; overlapping/nested
   annotation) is done after mapping (A11).
 
 | ID | Item | Kind |
