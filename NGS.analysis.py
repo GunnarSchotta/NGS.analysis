@@ -21,7 +21,7 @@ settings (broad incl. H3K27ac: -q 1e-4 --broad-cutoff 0.2), ATAC with --call-sum
 
 __author__ = ["Gunnar Schotta"]
 __email__ = "gunnar.schotta@bmc.med.lmu.de"
-__version__ = "3.3.0"
+__version__ = "3.3.1"
 
 from argparse import ArgumentParser, SUPPRESS
 import os
@@ -47,6 +47,13 @@ PIPELINEMODE = ["genes", "repeats"]   # RNA only; chromatin has one mode since 3
 # ATAC and H3K27ac, slightly more concordant broad marks; one BAM and one bigwig serve peaks and locus plots.
 # Young-copy fragments are 0.1-1.1 % of all fragments of the extra ones. >= 98.5 % correct copy for young L1 at 0.2 %
 # strain divergence (2x100); MAPQ 30 adds no precision under divergence.
+# 3.3.1 (roadmap B1): Trimmomatic MINLEN 20 instead of 30, as in the cutadapt re-processing (-m 20) that v3 is validated
+# against; recovers the < 30 bp fragments (about 0.2 % of ATAC, relevant for footprinting). --legacy-trim keeps 30 (v2).
+TRIM_MINLEN, LEGACY_TRIM_MINLEN = 20, 30
+# 3.3.1 (roadmap B2): RNA genes mode raises STAR's multimapper cap from the default 10 to 100 (anchor cap 200, the
+# TEtranscripts/SQuIRE-style setting), so reads from repeat-derived transcripts with 11-100 loci are no longer dropped
+# as "too many loci" (HERVKC4 RNA-seq). RNA repeats mode keeps the frozen v2 command (5000).
+RNA_MULTIMAP_NMAX, RNA_ANCHOR_MULTIMAP_NMAX = 100, 200
 FILT_MAPQ = 10      # .filt.bam (peaks, FRiP, filtered bigwig, QC)
 LOCUS_MAPQ = FILT_MAPQ   # repeat locus tier = the filtered set's cutoff
 # young = interspersed repeat < 5 % diverged from its consensus: at MAPQ >= LOCUS_MAPQ these elements receive
@@ -294,7 +301,8 @@ trim_cmd = build_command([
     trimming_prefix + "_R1" + unpaired_ext if args.paired_end else None,
     trimmed_fastq_R2 if args.paired_end else None,
     trimming_prefix + "_R2" + unpaired_ext if args.paired_end else None,
-    "ILLUMINACLIP:" + adapters + clip + " MINLEN:30"]) + " 2> " + trim_log
+    "ILLUMINACLIP:" + adapters + clip + " MINLEN:" + str(LEGACY_TRIM_MINLEN if args.legacy_trim else TRIM_MINLEN)
+]) + " 2> " + trim_log
 
 
 def check_trim():
@@ -417,6 +425,8 @@ elif args.protocol == "RNA":
     cmd = STAR + " --runThreadN " + str(pm.cores)
     cmd += " --quantMode TranscriptomeSAM GeneCounts --outSAMtype BAM"
     cmd += " Unsorted --runMode alignReads --genomeDir " + STAR_RNA_index
+    cmd += " --outFilterMultimapNmax " + str(RNA_MULTIMAP_NMAX)
+    cmd += " --winAnchorMultimapNmax " + str(RNA_ANCHOR_MULTIMAP_NMAX)
     cmd += " --readFilesCommand zcat --readFilesIn " + unmap_fq1
     if args.paired_end:
         cmd += " " + unmap_fq2 + " "

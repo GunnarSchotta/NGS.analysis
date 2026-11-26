@@ -13,6 +13,10 @@ R4  (3.3.0, one chromatin mode) a: v3_genes_3.2.0 vs v3_genes   gene outputs (st
                                 b: v2_repeats_A vs v3_genes     chromatin repeat counts, bowtie2 vs v2 STAR:
                                    family frag_all vs v2 .fc.txt (v2 counts mates, keeps duplicates), element
                                    frag_locus vs v2 .fc.id.txt (STAR unique); Repeat_* / Young_locus_pct stats
+R5  (3.3.1) v3_genes_3.3.0 vs v3_genes         B1 (Trimmomatic MINLEN 30 -> 20) and B2 (RNA genes-mode STAR cap 10 -> 100):
+                                   trimming / alignment / filtered counts, peaks and FRiP per sample; only fragments
+                                   of 20-29 bp after trimming (B1) and RNA reads with 11-100 loci (B2) may differ.
+                                   v3_repeats_legacy (--legacy-trim) keeps MINLEN 30: R1 stays identical to v2.
 """
 import os
 import re
@@ -225,4 +229,24 @@ for s in names:
 r4b = pd.DataFrame(rows)
 r4b.to_csv(os.path.join(OUT, "R4b_repeats_v2_vs_3.3.tsv"), sep="\t", index=False)
 log(r4b.to_string(index=False))
+if os.path.isdir(os.path.join(R, "v3_genes_3.3.0")):
+    log("\n## R5 3.3.0 vs 3.3.1 (v3_genes): B1 MINLEN 20, B2 RNA multimapper cap 100\n")
+    keys = ["Trim_input_fragments", "Trimmed_fragments", "Trim_dropped_fragments", "Aligned_fragments", "Unique_fragments",
+            "Multimapped_fragments", "Too_many_loci_fragments", "Filtered_fragments", "All_fragments", "Duplication_pct",
+            "NRF", "PBC1", "Insert_size_median", "TSS_score", "Peaks_n", "FRiP_pct", "Repeat_pct", "Young_locus_pct"]
+    rows = []
+    for s in names:
+        a, b = stats("v3_genes_3.3.0", s), stats("v3_genes", s)
+        if not a or not b:
+            continue
+        row = {"sample": s, "protocol": b.get("Protocol")}
+        for k in keys:
+            if a.get(k) != b.get(k):
+                row[k] = f"{a.get(k)}->{b.get(k)}"
+        row["unchanged"] = all(a.get(k) == b.get(k) for k in keys)
+        rows.append(row)
+    r5 = pd.DataFrame(rows).fillna("")
+    r5.to_csv(os.path.join(OUT, "R5_genes_3.3.0_vs_3.3.1.tsv"), sep="\t", index=False)
+    log(r5.T.to_string())
+
 open(os.path.join(OUT, "compare_report.txt"), "w").write("\n".join(lines) + "\n")

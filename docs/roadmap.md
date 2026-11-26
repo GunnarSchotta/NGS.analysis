@@ -39,9 +39,9 @@ them in commits and READMEs. Repeats-mode details and evidence: `repeat_strategy
 |---|---|---|---|---|
 | D5 | Default control for histone peaks without a matched input. Tested 2026-11-25 (`analysis/NGS.analysis.v3.peaks.benchmark/control_test/`): a fixed real input of another cell type ≈ matched input (Jaccard 0.71–0.76); simulated input recovers 86–96 % of peaks but adds 10–50 % weaker, more promoter-proximal regions; `--nolambda`/no control unsuitable. To decide: per-genome default input in `genomes/<g>.yaml`, simulated input as fallback | control test README | D/F | M |
 | D4 | Project-level consensus peak set (`make.common.peakset` logic) so peak numbers are comparable across samples | `analysis/Vincendeau/ATAC.HERVKC4/README.md` | F | M |
-| B2 | RNA genes mode uses STAR's default multimapper cap (10): reads with more loci are dropped, which suppressed HERV signal in the HERVKC4 RNA-seq | `analysis/Vincendeau/HERVKC4/locus_quantification/README.md` | D | S |
+| B2 | ~~done in 3.3.1 (cap 100 / anchor 200)~~ RNA genes mode used STAR's default multimapper cap (10): reads with more loci are dropped, which suppressed HERV signal in the HERVKC4 RNA-seq | `analysis/Vincendeau/HERVKC4/locus_quantification/README.md` | D | S |
 | B3 | ~~MAPQ ≥ 30 removes transgene/TRE and young-repeat signal from `.filt.bw`; optional all-MAPQ bigwig~~ done in 3.3.0 (`.filt.bw` now MAPQ ≥ 10, plus `.all.bw`) | `analysis/LiLi/playground/05.*`, `06.*` READMEs | F | S |
-| B1 | Trimmomatic `MINLEN:30` drops < 30 bp fragments that cutadapt `-m 20` keeps (about 0.2% of ATAC; matters for footprinting) | validation README | D | S |
+| B1 | ~~done in 3.3.1 (MINLEN 20)~~ Trimmomatic `MINLEN:30` dropped < 30 bp fragments that cutadapt `-m 20` keeps (about 0.2% of ATAC; matters for footprinting) | validation README | D | S |
 | B4 | bowtie2 end-to-end: no soft-clips, no junction evidence at transgene borders | LiLi 06 README | D | S (low priority) |
 | G4 | No blacklist for hs1 / mhaESC (chrM and artefact peaks survive there); IAP gag BEDs and GenMap index only for mm10 | `genomes/README.md` | F | M each |
 | E2 | Repeats-mode CR/CT nuc/subnuc bigwigs are not registered as report objects | `NGS.analysis.py` CR/CT block | B | S |

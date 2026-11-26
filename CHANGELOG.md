@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.3.1 (branch `v3`, 2026-11)
+
+Two small changes from the roadmap (B1, B2), decided together on 2026-11-26. Everything else is 3.3.0.
+- **B1: Trimmomatic `MINLEN` 30 → 20** (all protocols, `--legacy-trim` keeps 30). v3 was validated against the cutadapt
+  re-processing (`-m 20`) of the Edenhofer ATAC data; with `MINLEN:30` v3 lost the 20–29 bp fragments that cutadapt keeps
+  (about 0.2 % of ATAC fragments, 29–50 k per library, T2), which matters for footprinting and for short nucleosome-free
+  fragments. Statistics that change: `Trimmed_fragments`/`Trimmed_pct`, `Trim_dropped_fragments` and everything counted
+  downstream by a few tenths of a percent (more in libraries with many short fragments).
+- **B2: RNA genes mode STAR multimapper cap 10 → 100** (`--outFilterMultimapNmax 100 --winAnchorMultimapNmax 200`,
+  the TEtranscripts/SQuIRE-style setting). With STAR's default cap, reads with more than 10 loci were dropped as "too
+  many loci" before reaching the BAM; this was suspected to suppress HERV/LTR14 signal in the HERVKC4 RNA-seq
+  (`analysis/Vincendeau/HERVKC4/locus_quantification/README.md`). RNA repeats mode keeps the frozen v2 command (cap
+  5000). Measured on two HERVKC4 libraries (same trimmed fastq, cap 10 vs 100, `T6_B2_rna_multimap/`): 99.6 % of the
+  "too many loci" pairs (0.07–0.08 % of pairs) are recovered; about 0.06 % of formerly unique pairs become multimappers
+  (`Unique_fragments` −0.06 %, `Multimapped_fragments` +0.4–0.5 %, `Too_many_loci_fragments` −99.6 %); `ReadsPerGene`
+  changes for about 1,000 genes by small amounts; RSEM gene estimates are unchanged (r ≥ 0.9999). The BAM and
+  `Aligned.toTranscriptome.out.bam` are larger (up to 100 alignments per read).
+  **The HERVKC4-int/LTR14 locus counts did not change** (91.0 vs 91.0 in 741 loci), so the cap does not explain the
+  low HERV signal in that dataset; B2 is kept because it is harmless and recovers reads, not because it fixed HERVKC4.
+- Evidence and results: `analysis/NGS.analysis.v3.validation/` (T1 R5, T2 rerun) and
+  `analysis/NGS.analysis.v3.validation/T6_B2_rna_multimap/` (same trimmed fastq, cap 10 vs 100).
+- Do not mix 3.3.0 and 3.3.1 samples of one RNA or ATAC project without checking trimming/multimapper statistics.
+
 ## 3.3.0 (branch `v3`, 2026-11)
 
 **One mode for chromatin** (ATAC, CHIP, CR, CT; roadmap A0, decided 2026-11-25). Every chromatin sample is aligned

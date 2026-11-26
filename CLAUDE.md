@@ -152,6 +152,17 @@ H3K9me3 ChIP differs from v2 STAR by design (family r = 0.987, totals ~0.55×); 
 unexplained (`analysis/NGS.analysis.v3.validation/README.md`). **MAPQ 10 is final (user decision 2026-11-26)**; young
 elements are marked uncertain, not filtered. Caveat kept on record: the mapq10 test had n = 2 per mark, one genotype.
 
+## Status 3.3.1 (2026-11-26, committed on `v3`)
+
+Roadmap B1 + B2 together. **B1:** Trimmomatic `MINLEN` 30 → 20 (`--legacy-trim` keeps 30). **B2:** RNA genes mode STAR
+`--outFilterMultimapNmax 100 --winAnchorMultimapNmax 200` (repeats mode untouched). T1 (R5 block) and T2 rerun; results
+in `analysis/NGS.analysis.v3.validation/README.md`, section 3.3.1. Edenhofer ATAC: the < 30 bp class now matches the
+cutadapt reference; total at `-q 30` is +0.34–0.49 % vs 02 (up from +0.18–0.30 %, because the 30–59 bp Trimmomatic
+surplus is no longer offset by missing short fragments; within the 1 % limit). QC stats move ≤ 0.03. RNA repeats and
+bowtie2 chromatin repeat results unchanged. B2 (`T6_B2_rna_multimap/`) recovers 99.6 % of "too many loci" pairs, RSEM
+unchanged, and **does not change HERVKC4-int/LTR14 locus counts**: the STAR cap does not explain the weak HERVKC4 signal.
+Next roadmap items: D5, D4, G4, then the repeats redesign (`docs/roadmap.md`).
+
 ## Open questions for further development
 
 **Prioritised roadmap, the split decision and package status:** `docs/roadmap.md`

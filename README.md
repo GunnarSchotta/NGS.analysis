@@ -24,8 +24,8 @@ Open questions: `docs/repeat_strategy_open_questions.md`; development plan: `doc
 
 | Step | Chromatin | RNA |
 |---|---|---|
-| Trimming | Trimmomatic `ILLUMINACLIP:<Nextera or TruSeq>:2:30:10:1:true MINLEN:30` (PE: adapter overhangs clipped down to 1 nt, both reads of short fragments kept); SE: `:2:30:7` | same |
-| Alignment | `bowtie2 --very-sensitive -X 2000 --dovetail`; a multimapper is placed at one of its best loci, chosen at random (deterministic per read) | genes: STAR (default multimapping) + RSEM; repeats: STAR v2 multimapper settings |
+| Trimming | Trimmomatic `ILLUMINACLIP:<Nextera or TruSeq>:2:30:10:1:true MINLEN:20` (since 3.3.1; 30 before; PE: adapter overhangs clipped down to 1 nt, both reads of short fragments kept); SE: `:2:30:7` | same |
+| Alignment | `bowtie2 --very-sensitive -X 2000 --dovetail`; a multimapper is placed at one of its best loci, chosen at random (deterministic per read) | genes: STAR + RSEM, multimapper cap `--outFilterMultimapNmax 100 --winAnchorMultimapNmax 200` (since 3.3.1; STAR default 10 before); repeats: STAR v2 multimapper settings |
 | chrM | fragments with the read or mate on chrM are split off before `<s>.bam` is written (aligned against the full genome; `Mito_fragments`/`Mito_pct`) | kept |
 | Duplicates | Picard MarkDuplicates on `<s>.bam` (nuclear) | repeats: marked only (v2) |
 | Filtered set | `<s>.filt.bam`: proper pairs, duplicates **removed**, MAPQ ≥ 10, canonical chromosomes, no chrM, blacklist removed, orphan mates removed | repeats: `<s>.dedup.unique.bam` (MAPQ 255, duplicates marked; v2) |
