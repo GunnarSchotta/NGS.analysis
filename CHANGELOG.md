@@ -36,6 +36,11 @@ User guide: `docs/repeats.md`.
   - T1 rerun with the final cutoff (all 24 jobs complete): R4a differs from 3.2.0 as listed above (filtered fragments
     +1.6 to +5.7 %), repeat tables identical to the MAPQ 30 run, RNA repeats commands identical to v2
     (`analysis/NGS.analysis.v3.validation/README.md`, section 3.3.0).
+  - T2 rerun at full depth (2026-11-26, validation README, "T2 rerun with 3.3.0"): Edenhofer ATAC at `-q 30` is
+    +0.18–0.30 % against the cutadapt re-processing, as in 3.0.0, and the MAPQ 10 BAM has 3.3–4.1 % more fragments;
+    RNA repeats mode still matches v2 (family r = 0.99998); the bowtie2 H3K9me3 ChIP differs from the v2 STAR counts
+    by design (family r = 0.987, totals about 0.55×, element r 0.80–0.87; some simple-repeat families go up and are not
+    yet explained). `tests/T2/compare_T2_eden.sh` and `compare_T2_repeats.py` were adapted to the 3.3.0 outputs.
 - **All-fragment set** (temporary `.all.bam`): proper pairs, duplicates removed, canonical chromosomes, no chrM, any
   MAPQ, blacklist kept. New statistic `All_fragments`.
 - **Bigwigs:** `.filt.bw` (CPM, MAPQ ≥ 10) and `.all.bw` (CPM, every fragment, multimappers at one random best locus);

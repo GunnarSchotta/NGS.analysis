@@ -146,7 +146,10 @@ the "unique" definition).
 T1 was rerun with the final `FILT_MAPQ = 10` (2026-11-25, all samples complete): R4a differs from 3.2.0 by design
 (filtered fragments +1.6 to +5.7 %, TSS −0.2/−0.3, a few peak files), repeat tables identical to the MAPQ 30 run,
 RNA repeats commands identical to v2 (`analysis/NGS.analysis.v3.validation/README.md`, section 3.3.0; the MAPQ 30 T1 is
-in `T1/archive_3.3.0_mapq30/`). Still open: T2 not rerun for 3.3.0; the mapq10 test is limited to n = 2 per mark.
+in `T1/archive_3.3.0_mapq30/`). T2 was rerun with 3.3.0 (2026-11-26): Edenhofer ATAC at `-q 30` +0.18–0.30 % vs the
+cutadapt re-processing (MAPQ 10 BAM +3.3–4.1 % by design), RNA repeats mode still matches v2 (r = 0.99998), bowtie2
+H3K9me3 ChIP differs from v2 STAR by design (family r = 0.987, totals ~0.55×); several simple-repeat families rise
+unexplained (`analysis/NGS.analysis.v3.validation/README.md`). Still open: the mapq10 test is limited to n = 2 per mark.
 
 ## Open questions for further development
 

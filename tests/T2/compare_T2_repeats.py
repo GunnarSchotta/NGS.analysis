@@ -5,6 +5,12 @@ Usage: compare_T2_repeats.py      writes T2/angela_repeats_v2_vs_v3.tsv (+ _fami
 Per sample: STAR input / unique / multi / too-many-loci (Log.final.out, in pairs), featureCounts assigned (family -M,
 element unique), family counts (families with >= 100 v2 counts: Pearson r of log2, % families |log2FC| > 0.1,
 median log2FC), element counts (elements with >= 20 v2 counts: same), IAP normalised coverage (Pearson r).
+
+3.3.0: the RNA sample is still v2-style STAR (repeats mode frozen), so the comparison above holds for it unchanged.
+Chromatin samples (the H3K9me3 ChIP) are now bowtie2 in ONE mode: no STAR log and no feature_counts/ folder; the
+repeat tables are repeats_mm10/<s>.repeats.{family.tsv,elements.tsv.gz}. For these the v2 counts are compared with
+frag_all (family) and with both element tiers (frag_locus MAPQ >= 10, frag_all). Not identical by design: v2 counts
+mates and keeps duplicates, v3 counts fragments after duplicate removal, and STAR "unique" differs from the tiers.
 """
 import os
 
@@ -49,9 +55,44 @@ def compare(a, b, min_count):
                    "median_log2FC": round(l2.median(), 4)}
 
 
+def chromatin_row(s, d2, d3, fams):
+    """3.3.0 chromatin sample (bowtie2, tiers all / locus) vs the v2 STAR repeats-mode outputs."""
+    import yaml
+    y = yaml.safe_load(open(f"{d3}/stats.yaml"))
+    st = y[next(iter(y))]["sample"][s]
+    fam = pd.read_csv(f"{d3}/repeats_mm10/{s}.repeats.family.tsv", sep="\t").set_index("family")
+    el = pd.read_csv(f"{d3}/repeats_mm10/{s}.repeats.elements.tsv.gz", sep="\t").set_index("element_id")
+    r = {"sample": s, "v3_mapper": "bowtie2 (3.3.0 chromatin)"}
+    for k, n in star(d2, s).items():
+        r[f"v2_STAR_{k}"] = n
+    r["v2_fc_family_assigned"] = assigned(f"{d2}/feature_counts/{s}.fc.tmp.txt.summary")
+    r["v2_fc_element_assigned"] = assigned(f"{d2}/feature_counts/{s}.fc.id.txt.summary")
+    for k in ("All_fragments", "Filtered_fragments", "Repeat_pct", "Repeat_locus_pct", "Young_locus_pct"):
+        r[f"v3_{k}"] = st.get(k)
+    v2f, v2e = fc(f"{d2}/feature_counts/{s}.fc.txt"), fc(f"{d2}/feature_counts/{s}.fc.id.txt")
+    r["family_v3all_over_v2_total"] = round(float(fam.frag_all.sum() / v2f.sum()), 3)
+    j, l2, m = compare(v2f, fam.frag_all, 100)
+    r.update({f"family_{k}": v for k, v in m.items()})
+    fams.append(j.assign(log2FC=l2.round(4), sample=s))
+    for tier, col in (("locus", "frag_locus"), ("all", "frag_all")):
+        _, _, m = compare(v2e, el[col], 20)
+        r.update({f"element_{tier}_{k}": v for k, v in m.items()})
+    r["element_v3locus_over_v2unique_total"] = round(float(el.frag_locus.sum() / v2e.sum()), 3)
+    i2, i3 = f"{d2}/IAP_coverage/{s}.IAP.norm.coverage.txt", f"{d3}/IAP_coverage/{s}.IAP.norm.coverage.txt"
+    if os.path.exists(i2) and os.path.exists(i3):
+        a, b = (pd.read_csv(f, sep="\t", header=None).iloc[:, -1] for f in (i2, i3))
+        if len(a) == len(b):
+            r["IAP_cov_pearson"] = round(np.corrcoef(a, b)[0, 1], 5)
+            r["IAP_cov_sum_change_pct"] = round(100 * (b.sum() - a.sum()) / a.sum(), 2)
+    return r
+
+
 rows, fams = [], []
 for s, d2 in SAMPLES.items():
     d3 = f"{V3}/{s}"
+    if os.path.exists(f"{d3}/repeats_mm10/{s}.repeats.family.tsv"):
+        rows.append(chromatin_row(s, d2, d3, fams))
+        continue
     if not os.path.exists(f"{d3}/feature_counts/{s}.fc.txt"):
         print("skip", s, "(v3 not finished)")
         continue
